@@ -5,7 +5,7 @@ Statistical simulator for Warhammer 40,000 11th edition. Compares army compositi
 Two simulators live side by side:
 
 - `w40k_sim.py` (v1) — stateless phase-collapse simulator. Fast, no movement, no phases, no special rules. Good for pure stat-vs-stat baselines.
-- `w40k_sim_v2.py` (v2) — real inches, phases, and special rules. Models movement, deployment, shooting ranges, charges, melee, morale, stratagems, detachments.
+- `w40k_force_balancer/` (v2) — real inches, phases, and special rules. Models movement, deployment, shooting ranges, charges, melee, morale, stratagems, detachments. (`w40k_sim_v2.py` at the repo root is a thin backwards-compat shim that calls the package CLI.)
 
 Both kept in-tree so results can be diffed.
 
@@ -13,17 +13,20 @@ Both kept in-tree so results can be diffed.
 
 ```bash
 # v2 full head-to-head, 5000 sims x 5 rounds
+python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
+
+# Backwards-compat shim — same thing, old invocation
 python3 w40k_sim_v2.py force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
 
 # Verbose single-game trace (phase-by-phase decision log)
-python3 w40k_sim_v2.py force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml --verbose
+python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml --verbose
 
 # Side-by-side with v1
 python3 w40k_sim.py force_custodes_2024cp.yaml force_tau_2024cp.yaml
-python3 w40k_sim_v2.py force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
+python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
 
 # Custom board
-python3 w40k_sim_v2.py A.yaml B.yaml --board-width 60 --board-height 44 --deployment-gap 36
+python3 -m w40k_force_balancer A.yaml B.yaml --board-width 60 --board-height 44 --deployment-gap 36
 
 # Tests
 python3 -m pytest tests/
@@ -32,7 +35,7 @@ python3 -m pytest tests/
 ## CLI
 
 ```
-python3 w40k_sim_v2.py force_a.yaml force_b.yaml
+python3 -m w40k_force_balancer force_a.yaml force_b.yaml
     [--sims N]              # default 5000
     [--rounds N]            # default 5
     [--seed S]              # default 0
@@ -45,7 +48,52 @@ python3 w40k_sim_v2.py force_a.yaml force_b.yaml
 
 Output: A-wins / B-wins / draw percentages for A-goes-first, B-goes-first, and 50/50 blend. First-turn-advantage swing printed when ≥1 percentage point.
 
+## Code layout
+
+The v2 simulator was extracted from `w40k_sim_v2.py` into the `w40k_force_balancer` package in Nov 2026. Behavior-preserving refactor; CLI output is byte-identical to the monolith.
+
+```
+w40k_force_balancer/
+  __init__.py                # package root, re-exports public API
+  __main__.py                # `python -m w40k_force_balancer` entrypoint
+  cli.py                     # argparse glue
+  core/
+    dice.py                  # d6, 2d6, to-wound chart
+    model.py                 # Weapon / Unit / Force / Catalog dataclasses + phase constants
+    board.py                 # Board + 1D-distance model + module `_BOARD`
+  load/
+    catalog.py               # abilities.yaml + keywords.yaml + detachments/*.yaml loader
+    force.py                 # force_*.yaml loader + catalog validation
+  rules/
+    damage.py                # squad allocation, bodyguard spillover, self-mortals
+    unit_abilities.py        # FNP, Deadly Demise
+    weapon_abilities.py      # resolve_shots (the shot resolver, Sustained/Lethal/Dev/...)
+    stratagems.py            # CP gate + spend helpers
+    detachments.py           # Martial Ka'tah + Mont'ka declarations, Rapid Ingress
+  phases/
+    command.py               # CP gain, detachment declarations, Rapid Ingress
+    movement.py              # deep-strike arrivals + advance / move AI
+    shooting.py              # ranged activations, Grenade strat, Markerlight, Mont'ka
+    charge.py                # 2d6 charges + Overwatch + Heroic Intervention
+    fight.py                 # tiers + alternating activations
+    morale.py                # below-half battleshock + Insane Bravery
+  engine/
+    game.py                  # setup_initial_positions + simulate_game (one match)
+    runner.py                # simulate_many + print_report
+
+tests/                       # mirrored structure
+  core/{test_dice, test_model, test_board}.py
+  load/test_force.py
+  rules/{test_weapon_abilities, test_unit_abilities, test_stratagems, test_detachments}.py
+  phases/{test_movement, test_shooting, test_charge, test_fight, test_morale}.py
+  engine/test_game.py        # full-game + N-sim integration tests
+```
+
+Public API (`import w40k_force_balancer as sim`): `load_catalogs` / `load_force` / `run_simulation` / `main`, plus every dataclass + phase function + rule helper for direct use.
+
 ## Catalog structure
+
+Data lives at the repo root in the `catalog/` directory — kept out of the package so it can be edited without touching Python code.
 
 ```
 catalog/
@@ -57,6 +105,8 @@ catalog/
 ```
 
 Unknown ability, keyword, detachment, or faction names fail loud at load time with a `RuntimeError` naming the missing ref. Add to the catalog before referencing in a force YAML.
+
+The v2 force yamls (`force_custodes_2024cp_v2.yaml`, `force_tau_2024cp_v2.yaml`) stay at the repo root alongside the v1 force yamls so both simulators find them with the same relative path.
 
 ## Force YAML schema
 
@@ -167,7 +217,7 @@ In the Fight phase, all `FIGHTS_FIRST` units activate first (both sides, active-
 
 ## Statistical approximation licenses
 
-Fidelity does not need to be 100% when statistics can model a hard-to-measure outcome. Every shortcut is tagged `STAT-APPROX:` in the source — audit with `grep STAT-APPROX w40k_sim_v2.py`.
+Fidelity does not need to be 100% when statistics can model a hard-to-measure outcome. Every shortcut is tagged `STAT-APPROX:` in the source — audit with `grep -r STAT-APPROX w40k_force_balancer/`.
 
 Active approximations:
 
@@ -206,19 +256,38 @@ Judgment calls made where Wahapedia was unclear or 11th-ed phrasing was conteste
 
 ## Tests
 
+Mirror the package structure one-for-one:
+
 ```
 tests/
-  test_weapon_abilities.py     # one case per weapon ability
-  test_unit_abilities.py       # FNP, Deep Strike, Stealth, FF, DD, Infil, Scouts, FGG, Markerlight
-  test_stratagems.py           # CP economy + every implemented strat
-  test_detachments.py          # Martial Ka'tah, Mont'ka
-  test_phases.py               # movement, charge, engagement rules, morale
-  test_catalog_validation.py   # load-time validation + full force load
+  core/
+    test_dice.py               # to_wound chart + clamp
+    test_model.py               # Unit / Force copy semantics, wound bookkeeping
+    test_board.py               # pair_distance, closest_enemy{,_within}
+  load/
+    test_force.py               # catalog validation + full force-yaml load
+  rules/
+    test_weapon_abilities.py    # one case per weapon ability
+    test_unit_abilities.py      # FNP, Deep Strike, Stealth, FF, DD, Infil, Scouts, FGG, Markerlight
+    test_stratagems.py          # CP economy + every implemented strat
+    test_detachments.py         # Martial Ka'tah, Mont'ka
+  phases/
+    test_movement.py            # advance / normal move / gap-clamp
+    test_charge.py              # 2d6 charge, fail, declaration-range cap
+    test_shooting.py            # engagement locks out non-pistol shooting
+    test_fight.py               # engaged units trade damage
+    test_morale.py              # below-half battleshock
+  engine/
+    test_game.py                # full-game smoke + 500-sim pinned blend
 ```
 
-Run: `python3 -m pytest tests/`
+Run from the repo root:
 
-Every ability in `catalog/abilities.yaml` has at least one test case showing the expected behaviour on a known-state battlefield; unknown-ref failures are also covered in `test_catalog_validation.py`.
+```bash
+python3 -m pytest tests/ -q
+```
+
+Every ability in `catalog/abilities.yaml` has at least one test case showing the expected behaviour on a known-state battlefield; unknown-ref failures are covered in `tests/load/test_force.py`.
 
 ## Design notes
 
