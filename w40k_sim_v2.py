@@ -39,7 +39,9 @@ Statistical approximations active in this sim (fidelity shortcuts):
   3. Markerlight re-roll effect — 2+ markers on a target buff the
      effective BS of subsequent T'au ranged shots by +1 (lowered skill
      target), approximating "re-roll all failed to-hit."
-  4. Grenade stratagem = 6 attacks at expected value, not 1d6 rolled.
+  4. Grenade stratagem — now samples 1d6 properly (expected value 3.5); the
+     earlier version used 6 attacks, which is MAX not expected and biased
+     damage upward. Sampling keeps the variance in the right bucket.
   5. Overwatch applies the strat universally (defender's BS is patched
      to 6+ / 5+ for the activation) rather than being a reaction.
   6. Independent-rolls save model — armor save and invulnerable save are
@@ -1072,11 +1074,13 @@ def shooting_phase(
             target = closest_enemy_within(unit, enemy, 8)
             if target is not None and target.has_keyword("INFANTRY"):
                 _spend_strat(current, "GRENADE", round_no)
-                # Grenade = 1d6 S6 AP-1 D1 attacks; we use expected-value 6 shots
-                # from a single-model "virtual thrower" so attacks do NOT multiply
-                # by the squad's model count.
+                # Grenade = 1d6 S6 AP-1 D1 attacks. Sampled once per use so
+                # variance lands in the win/lose distribution; expected value
+                # is 3.5. Fired from a single-model "virtual thrower" so
+                # attacks do NOT multiply by the squad's model count.
+                grenade_attacks = roll_d6(rng)
                 virtual = Weapon(
-                    name="Grenade (strat)", attacks=6, skill=4, strength=6,
+                    name="Grenade (strat)", attacks=grenade_attacks, skill=4, strength=6,
                     ap=1, damage=1, melee=False, range_in=8,
                 )
                 ephemeral_thrower = replace(
