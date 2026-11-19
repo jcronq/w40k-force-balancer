@@ -8,6 +8,12 @@ from typing import Iterable
 
 from .core.board import Board
 from .engine.game import simulate_game
+from .engine.logger import (
+    JsonlLogger,
+    MarkdownLogger,
+    MultiLogger,
+    VerboseStdoutLogger,
+)
 from .engine.runner import print_matrix_report, print_report
 from .load.catalog import load_catalog
 from .load.doctrines import load_all_doctrines, load_doctrine
@@ -26,6 +32,11 @@ Doctrine options:
   --doctrine-a / --doctrine-b   override a side's doctrine for one run
   --matrix                      run every (doctrine_a, doctrine_b) permutation
                                 against each other and print the grid
+
+Battle-log options (single-game):
+  --log-game FILE.md            emit a human-readable markdown battle report
+  --log-game-jsonl FILE.jsonl   emit a machine-readable JSONL event stream
+                                (combine with --log-game for both)
 """
 
 
@@ -36,6 +47,33 @@ def _apply_doctrine(force, doctrine_id: str) -> None:
     force.doctrine = doc
     for u in force.units:
         u.doctrine = doc
+
+
+def _build_single_game_logger(
+    log_md: Path | None,
+    log_jsonl: Path | None,
+    verbose: bool,
+):
+    """Resolve the --log-game / --log-game-jsonl / --verbose combination
+    into a single logger (or None for the default NullLogger path).
+
+    Returns (logger, finalize_callable | None). The caller must invoke
+    the finalizer after simulate_game returns to flush file sinks.
+    """
+    sinks = []
+    if log_md is not None:
+        sinks.append(MarkdownLogger(log_md))
+    if log_jsonl is not None:
+        sinks.append(JsonlLogger(log_jsonl))
+    if verbose:
+        sinks.append(VerboseStdoutLogger())
+    if not sinks:
+        return None, None
+    if len(sinks) == 1:
+        single = sinks[0]
+        return single, single.finalize
+    multi = MultiLogger(sinks)
+    return multi, multi.finalize
 
 
 def main(argv: Iterable[str] | None = None) -> int:
@@ -66,6 +104,20 @@ def main(argv: Iterable[str] | None = None) -> int:
         "--matrix-sims", type=int, default=2_000,
         help="sims per matrix cell (default: 2000)",
     )
+    parser.add_argument(
+        "--log-game", type=Path, default=None,
+        help=(
+            "Single-game markdown battle report. Forces --sims=1 and "
+            "ignores aggregate output. Overwrites the target file."
+        ),
+    )
+    parser.add_argument(
+        "--log-game-jsonl", type=Path, default=None,
+        help=(
+            "Single-game JSONL event stream (one JSON object per line). "
+            "Combine with --log-game for both outputs of the same game."
+        ),
+    )
     args = parser.parse_args(argv)
 
     catalog = load_catalog(args.catalog_dir)
@@ -77,7 +129,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         deployment_gap_in=args.deployment_gap,
     )
 
+    single_game_mode = args.log_game is not None or args.log_game_jsonl is not None
+
     if args.matrix:
+        if single_game_mode:
+            print(
+                "--log-game / --log-game-jsonl describe a single game and "
+                "can't be combined with --matrix."
+            )
+            return 2
         doctrines = load_all_doctrines()
         # Order the grid so the catalog's starter set appears first.
         order = ["rush", "gunline", "kite", "hold", "reserve"]
@@ -98,9 +158,31 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.doctrine_b:
         _apply_doctrine(force_b, args.doctrine_b)
 
+    if single_game_mode:
+        rng = random.Random(args.seed)
+        logger, finalize = _build_single_game_logger(
+            args.log_game, args.log_game_jsonl, args.verbose,
+        )
+        try:
+            res = simulate_game(
+                force_a, force_b, board, args.rounds, True, rng,
+                logger=logger, seed=args.seed,
+            )
+        finally:
+            if finalize is not None:
+                finalize()
+        out_lines = [f"Single-game result (A goes first): {res}"]
+        if args.log_game is not None:
+            out_lines.append(f"  markdown: {args.log_game}")
+        if args.log_game_jsonl is not None:
+            out_lines.append(f"  jsonl:    {args.log_game_jsonl}")
+        print("\n".join(out_lines))
+        return 0
+
     if args.verbose:
         rng = random.Random(args.seed)
-        res = simulate_game(force_a, force_b, board, args.rounds, True, rng, verbose=True)
+        res = simulate_game(force_a, force_b, board, args.rounds, True, rng,
+                            verbose=True, seed=args.seed)
         print(f"\nVerbose game result (A goes first): {res}")
         return 0
 
