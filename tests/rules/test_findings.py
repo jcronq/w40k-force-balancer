@@ -194,6 +194,51 @@ def test_finding4_single_model_at_above_half_does_not_trigger(board_default):
 
 
 # =========================================================================== #
+# Finding #5 — Fall Back heuristic
+# =========================================================================== #
+
+
+def test_finding5_overwhelmed_unit_falls_back(board_default):
+    """Unit with 1 attack facing an engaged enemy pumping 10 attacks
+    into it should Fall Back: clears engagement, flags advanced_this_turn,
+    disables Shooting + Charge this turn (enforced by their phase gates)."""
+    melee_weak = sim.Weapon(name="PuncherW", attacks=1, skill=3, strength=4, ap=0,
+                            damage=1, melee=True, range_in=0, abilities={})
+    melee_strong = sim.Weapon(name="PuncherS", attacks=10, skill=3, strength=4, ap=0,
+                              damage=1, melee=True, range_in=0, abilities={})
+    us = make_unit(name="Us", models=1, weapons=[melee_weak])
+    them = make_unit(name="Them", models=1, weapons=[melee_strong])
+    us.pos = 10.0
+    them.pos = 10.0
+    us.engaged_with.add(id(them))
+    them.engaged_with.add(id(us))
+    friend = make_force("Friend", us)
+    enemy = make_force("Enemy", them)
+    sim.movement_phase(friend, enemy, round_no=1, rng=random.Random(0))
+    assert us.engaged_with == set()
+    assert them.engaged_with == set()
+    assert us.advanced_this_turn is True
+
+
+def test_finding5_dominant_unit_does_not_fall_back(board_default):
+    melee_strong = sim.Weapon(name="S", attacks=10, skill=3, strength=4, ap=0,
+                              damage=1, melee=True, range_in=0, abilities={})
+    melee_weak = sim.Weapon(name="W", attacks=1, skill=3, strength=4, ap=0,
+                            damage=1, melee=True, range_in=0, abilities={})
+    us = make_unit(name="Us", models=1, weapons=[melee_strong])
+    them = make_unit(name="Them", models=1, weapons=[melee_weak])
+    us.pos = 10.0
+    them.pos = 10.0
+    us.engaged_with.add(id(them))
+    them.engaged_with.add(id(us))
+    friend = make_force("Friend", us)
+    enemy = make_force("Enemy", them)
+    sim.movement_phase(friend, enemy, round_no=1, rng=random.Random(0))
+    assert id(them) in us.engaged_with
+    assert us.advanced_this_turn is False
+
+
+# =========================================================================== #
 # Finding #7 — Hazardous mortals get FNP
 # =========================================================================== #
 

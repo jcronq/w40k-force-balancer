@@ -5,7 +5,33 @@ import random
 
 from ..core import board as _board
 from ..core.dice import roll_d6
-from ..core.model import Force
+from ..core.model import Force, Unit
+
+
+def _unit_by_id(force: Force, ids: set[int]) -> list[Unit]:
+    return [u for u in force.units if id(u) in ids]
+
+
+def _total_melee_attacks(unit: Unit) -> int:
+    """Simple heuristic: sum of A x models across melee weapons."""
+    return sum(w.attacks * unit.models for w in unit.weapons if w.melee)
+
+
+def _should_fall_back(unit: Unit, enemy_force: Force) -> bool:
+    """Fall Back when engaged enemies out-throw this unit in melee.
+
+    Heuristic per finding #5: compare total melee attacks from engaged
+    enemies vs this unit's own melee attack count. Attacks (not expected
+    damage) are the user-specified proxy — keeps the decision fully
+    deterministic and matches a real player's "they'll kill more of me
+    than I can kill back" instinct without re-simulating the fight.
+    """
+    partners = [e for e in enemy_force.units if id(e) in unit.engaged_with and e.alive]
+    if not partners:
+        return False
+    incoming = sum(_total_melee_attacks(p) for p in partners)
+    outgoing = _total_melee_attacks(unit)
+    return incoming > outgoing
 
 
 def movement_phase(
@@ -45,8 +71,24 @@ def movement_phase(
         u.advanced_this_turn = False
         u.remained_stationary = True
 
-        # Engaged units can only Fall Back; we don't model fallback choice. Skip.
+        # Engaged units may Fall Back (finding #5). Decision heuristic:
+        # if the engaged enemies pointing melee attacks at this unit out-
+        # throw this unit's melee attacks back at them, Fall Back.
+        # Fall Back clears engagement, marks advanced_this_turn=True, and
+        # blocks Shooting + Charge this turn. Deterministic given state.
         if u.engaged_with:
+            if _should_fall_back(u, enemy):
+                partners = _unit_by_id(enemy, u.engaged_with)
+                for p in partners:
+                    p.engaged_with.discard(id(u))
+                u.engaged_with.clear()
+                u.advanced_this_turn = True
+                u.moved_this_turn = True
+                u.remained_stationary = False
+                # Pull back slightly so next phases see them as off-engaged.
+                u.pos = max(0.0, u.pos - float(u.movement))
+                if verbose:
+                    print(f"    [{current.name}] {u.name} falls back")
             continue
 
         # Target: closest enemy.
