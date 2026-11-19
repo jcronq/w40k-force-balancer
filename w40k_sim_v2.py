@@ -44,10 +44,7 @@ Statistical approximations active in this sim (fidelity shortcuts):
      damage upward. Sampling keeps the variance in the right bucket.
   5. Overwatch applies the strat universally (defender's BS is patched
      to 6+ / 5+ for the activation) rather than being a reaction.
-  6. Independent-rolls save model — armor save and invulnerable save are
-     rolled independently; outcome is equivalent to "take the better" under
-     independent-rolls assumption.
-  7. Devastating Wound damage does not get further FNP ignore rolls.
+  6. Devastating Wound damage does not get further FNP ignore rolls.
 """
 
 from __future__ import annotations
@@ -674,19 +671,31 @@ def resolve_shots(
     normal_wounds = wounds - devastating_wounds
 
     # --- Save step for the normal wounds ---------------------------------
+    # 40k rule: defender picks ONE save type — modified armor OR invulnerable,
+    # whichever has the better (lower) target. Previously the sim rolled both
+    # independently and passed on either, which inflates defensive durability
+    # whenever AP makes the modified armor worse than the invuln. Bug fixed
+    # 2026-11-18. Now picks the lower target and rolls once.
     unsaved = 0
     modified_save = target.save + weapon.ap
     inv = target.inv_save
-    for _ in range(normal_wounds):
-        armor_ok = modified_save <= 6 and roll_d6(rng) >= modified_save
-        inv_ok = False
-        if inv is not None:
-            inv_ok = roll_d6(rng) >= inv
-        # Take the better of armor and invuln — if either passes, saved.
-        # Note: in actual 40k you pick one; same probabilistic outcome under
-        # independent-rolls approximation we're using.
-        if not (armor_ok or inv_ok):
-            unsaved += 1
+    # Compute effective save target. Modified save that exceeds 6 means no
+    # armor save available; fall back to inv if present, else guaranteed fail.
+    armor_possible = modified_save <= 6
+    if armor_possible and inv is not None:
+        save_target = min(modified_save, inv)
+    elif armor_possible:
+        save_target = modified_save
+    elif inv is not None:
+        save_target = inv
+    else:
+        save_target = None  # no save possible; all wounds pass without rolling
+    if save_target is None:
+        unsaved = normal_wounds
+    else:
+        for _ in range(normal_wounds):
+            if roll_d6(rng) < save_target:
+                unsaved += 1
 
     # --- Damage calc for normal unsaved wounds ---------------------------
     damage_per = weapon.damage

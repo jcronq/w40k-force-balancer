@@ -176,8 +176,7 @@ Active approximations:
 3. Markerlight re-roll effect modelled as -1 to skill target for 2+ markers.
 4. ~~Grenade stratagem fires at expected value (6 shots), not sampled 1d6.~~ Fixed 2026-11-18: now samples 1d6 properly each use. Expected value is 3.5, not 6.
 5. Overwatch applies the strat universally when it would land.
-6. Armor / invulnerable save rolled independently (equivalent in expectation).
-7. Devastating-wound mortals bypass FNP.
+6. Devastating-wound mortals bypass FNP.
 
 ## Known ambiguities
 
