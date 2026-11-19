@@ -5,6 +5,7 @@ import random
 
 from ..core.dice import roll_2d6
 from ..core.model import Force
+from ..engine.logger import BattleLogger, NullLogger, VerboseStdoutLogger
 from ..rules.stratagems import _can_use_strat, _spend_strat
 
 
@@ -14,7 +15,11 @@ def morale_phase(
     round_no: int,
     rng: random.Random,
     verbose: bool = False,
+    logger: BattleLogger | None = None,
+    turn_side: str = "A",
 ) -> None:
+    if logger is None:
+        logger = VerboseStdoutLogger() if verbose else NullLogger()
     current.used_strats_this_phase = set()
     for u in current.units:
         if not u.alive or u.in_reserves:
@@ -35,7 +40,18 @@ def morale_phase(
             # Ld test: 2d6 >= Ld to pass. (We add models_lost_this_round as
             # a crude proxy for 10e's modifier though 11e uses flat 2d6 vs Ld.)
             roll = roll_2d6(rng)
-            if roll < u.leadership:
+            passed = roll >= u.leadership
+            logger.record({
+                "round": round_no,
+                "turn": turn_side,
+                "phase": "morale",
+                "type": "morale_test",
+                "actor": u.name,
+                "roll": roll,
+                "leadership": u.leadership,
+                "passed": passed,
+            })
+            if not passed:
                 # Failed — battleshock this round.
                 if (
                     not current.insane_bravery_used_this_round
@@ -43,10 +59,21 @@ def morale_phase(
                 ):
                     _spend_strat(current, "INSANE_BRAVERY", round_no)
                     current.insane_bravery_used_this_round = True
-                    if verbose:
-                        print(f"    [{current.name}] INSANE_BRAVERY saves {u.name}")
+                    logger.record({
+                        "round": round_no,
+                        "turn": turn_side,
+                        "phase": "morale",
+                        "type": "strat_used",
+                        "strat_id": "INSANE_BRAVERY",
+                        "actor": u.name,
+                    })
                 else:
                     u.battleshocked_until_round = round_no
-                    if verbose:
-                        print(f"    [{current.name}] {u.name} FAILS battleshock (-1 OC, no strats)")
+                    logger.record({
+                        "round": round_no,
+                        "turn": turn_side,
+                        "phase": "morale",
+                        "type": "battleshock_triggered",
+                        "actor": u.name,
+                    })
         u.models_lost_this_round = 0

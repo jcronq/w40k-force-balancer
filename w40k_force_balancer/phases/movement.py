@@ -20,6 +20,7 @@ import random
 from ..core import board as _board
 from ..core.dice import roll_d6
 from ..core.model import Force, Unit
+from ..engine.logger import BattleLogger, NullLogger, VerboseStdoutLogger
 
 
 def _unit_by_id(force: Force, ids: set[int]) -> list[Unit]:
@@ -158,7 +159,12 @@ def movement_phase(
     round_no: int,
     rng: random.Random,
     verbose: bool = False,
+    logger: BattleLogger | None = None,
+    turn_side: str = "A",
 ) -> None:
+    if logger is None:
+        logger = VerboseStdoutLogger() if verbose else NullLogger()
+
     # Deep-strike arrivals (default round 2, bumped by reserve doctrine)
     for u in current.units:
         if u.in_reserves:
@@ -170,8 +176,14 @@ def movement_phase(
                 u.pos = max(0.0, _board.get_board().deployment_gap_in - int(ds.get("range_in", 9)))
                 u.moved_this_turn = True
                 u.remained_stationary = False
-                if verbose:
-                    print(f"    [{current.name}] {u.name} deep-strikes in at pos={u.pos:.1f}")
+                logger.record({
+                    "round": round_no,
+                    "turn": turn_side,
+                    "phase": "movement",
+                    "type": "deep_strike_arrival",
+                    "actor": u.name,
+                    "dst_pos": u.pos,
+                })
 
     for u in current.units:
         if not u.alive or u.in_reserves:
@@ -192,9 +204,20 @@ def movement_phase(
                 u.advanced_this_turn = True
                 u.moved_this_turn = True
                 u.remained_stationary = False
+                pre = u.pos
                 u.pos = max(0.0, u.pos - float(u.movement))
-                if verbose:
-                    print(f"    [{current.name}] {u.name} falls back")
+                logger.record({
+                    "round": round_no,
+                    "turn": turn_side,
+                    "phase": "movement",
+                    "type": "movement",
+                    "actor": u.name,
+                    "src_pos": pre,
+                    "dst_pos": u.pos,
+                    "mode": u.doctrine.movement.mode,
+                    "advanced": False,
+                    "fallback": True,
+                })
             continue
 
         # Target: closest enemy for distance-reference purposes.
@@ -205,9 +228,16 @@ def movement_phase(
 
         pre_pos = u.pos
         _apply_movement(u, enemy_target, gap, rng)
-        if verbose and u.pos != pre_pos:
-            print(
-                f"    [{current.name}] {u.name} moves {u.pos - pre_pos:+.1f}\" "
-                f"[{u.doctrine.movement.mode}] (gap now "
-                f"{_board.pair_distance(u, enemy_target):.1f}\")"
-            )
+        if u.pos != pre_pos:
+            logger.record({
+                "round": round_no,
+                "turn": turn_side,
+                "phase": "movement",
+                "type": "movement",
+                "actor": u.name,
+                "src_pos": pre_pos,
+                "dst_pos": u.pos,
+                "mode": u.doctrine.movement.mode,
+                "advanced": u.advanced_this_turn,
+                "fallback": False,
+            })

@@ -359,8 +359,6 @@ def _render_markdown_event(ev: Event) -> str:
             f"- Heroic Intervention: {ev.get('actor')} moves into "
             f"{ev.get('target')}"
         )
-    if t == "deep_strike_arrival":
-        return f"- {ev.get('actor')} deep-strikes in"
     if t == "fall_back":
         return f"- {ev.get('actor')} falls back"
     if t == "morale_test":
