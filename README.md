@@ -1,20 +1,18 @@
-# w40k_sim v2
+# w40k-force-balancer
 
-Statistical simulator for Warhammer 40,000 11th edition. Unlike the v1
-stateless phase-collapse sim, v2 models real inches, phases, and special
-rules so Jason can compare army compositions against actual table math
-rather than trusting the official points system.
+Statistical simulator for Warhammer 40,000 11th edition. Compares army compositions against actual table math rather than the official points system.
 
-The v1 file (`w40k_sim.py`) is unchanged for regression comparison. v2
-lives alongside at `w40k_sim_v2.py` with new catalogs under `catalog/`
-and matched force yamls `force_*_v2.yaml`.
+Two simulators live side by side:
+
+- `w40k_sim.py` (v1) — stateless phase-collapse simulator. Fast, no movement, no phases, no special rules. Good for pure stat-vs-stat baselines.
+- `w40k_sim_v2.py` (v2) — real inches, phases, and special rules. Models movement, deployment, shooting ranges, charges, melee, morale, stratagems, detachments.
+
+Both kept in-tree so results can be diffed.
 
 ## Quick start
 
 ```bash
-cd /home/alice/w40k_sim
-
-# Full head-to-head, 5000 sims x 5 rounds
+# v2 full head-to-head, 5000 sims x 5 rounds
 python3 w40k_sim_v2.py force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
 
 # Verbose single-game trace (phase-by-phase decision log)
@@ -45,9 +43,7 @@ python3 w40k_sim_v2.py force_a.yaml force_b.yaml
     [--verbose]             # single-game decision trace
 ```
 
-Output matches v1: A-wins / B-wins / draw percentages for A-goes-first,
-B-goes-first, and 50/50 blend; plus first-turn-advantage swing when it's
-≥1 percentage point.
+Output: A-wins / B-wins / draw percentages for A-goes-first, B-goes-first, and 50/50 blend. First-turn-advantage swing printed when ≥1 percentage point.
 
 ## Catalog structure
 
@@ -60,9 +56,7 @@ catalog/
     montka.yaml         # T'au — Mont'ka
 ```
 
-Unknown ability, keyword, detachment, or faction names fail loud at load
-time — `RuntimeError` with an actionable message. Add to the catalog
-before referencing in a force yaml.
+Unknown ability, keyword, detachment, or faction names fail loud at load time with a `RuntimeError` naming the missing ref. Add to the catalog before referencing in a force YAML.
 
 ## Force YAML schema
 
@@ -105,8 +99,7 @@ units:
 
 ### Required fields per unit
 
-`name`, `models`, `T`, `W`, `Sv`. Everything else has a default. Missing
-required fields raise `RuntimeError`.
+`name`, `models`, `T`, `W`, `Sv`. Everything else has a default. Missing required fields raise `RuntimeError`.
 
 ## Modelled rules (v2 scope)
 
@@ -146,8 +139,7 @@ All implemented (see `catalog/abilities.yaml` for parameters):
 
 ### Stratagems (CP economy)
 
-Each force starts with 4 CP. +1 CP per round from round 2 onward.
-Available stratagems depend on the chosen detachment:
+Each force starts with 4 CP. +1 CP per round from round 2 onward. Available stratagems depend on the chosen detachment:
 
 | Strat | CP | Phase | Effect |
 |---|---|---|---|
@@ -160,30 +152,25 @@ Available stratagems depend on the chosen detachment:
 
 ### Detachment abilities
 
-- **Shield Host of the Emperor** (Custodes): `MARTIAL_KATAH` — at the
-  start of each command phase, nominate one enemy unit; all Custodes
-  units get +1 to wound rolls in melee against that unit this round.
-- **Mont'ka** (T'au): at the start of each command phase, nominate one
-  T'au unit; that unit fires twice in the shooting phase this round.
+- **Shield Host of the Emperor** (Custodes): `MARTIAL_KATAH` — at the start of each command phase, nominate one enemy unit; all Custodes units get +1 to wound rolls in melee against that unit this round.
+- **Mont'ka** (T'au): at the start of each command phase, nominate one T'au unit; that unit fires twice in the shooting phase this round.
 
 ### Phase loop
 
 Per round, each force in turn-order:
+
 ```
 Command → Movement → Shooting → Charge → Fight → Morale
 ```
 
-In the Fight phase, all `FIGHTS_FIRST` units activate first (both sides,
-active-player priority); then normal units; then `FIGHTS_LAST`.
+In the Fight phase, all `FIGHTS_FIRST` units activate first (both sides, active-player priority); then normal units; then `FIGHTS_LAST`.
 
 ## Statistical approximation licenses
 
-Per Jason's explicit scope note: "anywhere 'measuring truth' requires
-simulating geometry we've collapsed, use expected-value probability
-instead of sampling." Every such shortcut is tagged `STAT-APPROX:` in
-the source — audit with `grep STAT-APPROX w40k_sim_v2.py`.
+Fidelity does not need to be 100% when statistics can model a hard-to-measure outcome. Every shortcut is tagged `STAT-APPROX:` in the source — audit with `grep STAT-APPROX w40k_sim_v2.py`.
 
 Active approximations:
+
 1. 1D distance collapse (no left-right drift, no LoS graph).
 2. Precision character allocation is a flat 50/50 split.
 3. Markerlight re-roll effect modelled as -1 to skill target for 2+ markers.
@@ -192,31 +179,17 @@ Active approximations:
 6. Armor / invulnerable save rolled independently (equivalent in expectation).
 7. Devastating-wound mortals bypass FNP.
 
-## Known ambiguities (Jason override surface)
+## Known ambiguities
 
-Judgment calls made where Wahapedia was unclear or 11th-ed phrasing was
-contested. Jason should review and override if preferred:
+Judgment calls made where Wahapedia was unclear or 11th-ed phrasing was contested. Open to override — PR a change or file an issue:
 
-- **FNP vs Devastating-wound mortals** — current: FNP does NOT apply to
-  dev-wound mortals (11e core rules). Some players argue native unit FNP
-  should still apply; toggle via commenting the `mortal_damage_points`
-  branch in `resolve_shots()`.
-- **Sustained Hits + Torrent** — current: Torrent skips the hit roll, so
-  no crits generated, so Sustained Hits is inert when paired. 11e rules
-  are silent on this interaction.
-- **Rapid Ingress timing** — current: can be used in round 1 command
-  phase. 11e rules say "end of any opponent's turn." Simplified for sim.
-- **Anti-KEYWORD + modifier cap** — current: anti threshold is checked
-  against the raw wound roll, not the modified one. 11e tournament ruling
-  tends toward modified roll; swap in `resolve_shots` if desired.
-- **Mont'ka target selection** — current: picks the T'au unit with the
-  highest `attacks × models` ranged weapon total. 11e actually requires
-  the unit to be in range of at least one enemy; sim picks regardless.
-- **Overwatch targeting** — current: defender overwatches the charger.
-  11e lets the defender overwatch *any* enemy within range. Simplified.
-- **Multi-target shooting** — current: each weapon on a unit picks its
-  own closest-to-dying target in range. 11e lets the unit split fire per
-  model; close to equivalent in expectation.
+- **FNP vs Devastating-wound mortals** — current: FNP does NOT apply to dev-wound mortals (11e core rules). Some players argue native unit FNP should still apply; toggle via the `mortal_damage_points` branch in `resolve_shots()`.
+- **Sustained Hits + Torrent** — current: Torrent skips the hit roll, so no crits generated, so Sustained Hits is inert when paired. 11e rules are silent on this interaction.
+- **Rapid Ingress timing** — current: can be used in round 1 command phase. 11e rules say "end of any opponent's turn." Simplified for sim.
+- **Anti-KEYWORD + modifier cap** — current: anti threshold is checked against the raw wound roll, not the modified one. 11e tournament ruling tends toward modified roll; swap in `resolve_shots` if desired.
+- **Mont'ka target selection** — current: picks the T'au unit with the highest `attacks × models` ranged weapon total. 11e actually requires the unit to be in range of at least one enemy; sim picks regardless.
+- **Overwatch targeting** — current: defender overwatches the charger. 11e lets the defender overwatch *any* enemy within range. Simplified.
+- **Multi-target shooting** — current: each weapon on a unit picks its own closest-to-dying target in range. 11e lets the unit split fire per model; close to equivalent in expectation.
 
 ## Data sources
 
@@ -246,20 +219,14 @@ tests/
 
 Run: `python3 -m pytest tests/`
 
-Every ability in `catalog/abilities.yaml` has at least one test case
-showing the expected behaviour on a known-state battlefield; unknown-ref
-failures are also covered in `test_catalog_validation.py`.
+Every ability in `catalog/abilities.yaml` has at least one test case showing the expected behaviour on a known-state battlefield; unknown-ref failures are also covered in `test_catalog_validation.py`.
 
 ## Design notes
 
-- **State lives in Unit/Force**; the sim is otherwise stateless — rerun
-  with a fresh `rng` for independent games. `simulate_game` copies the
-  input forces, so original yamls stay pristine.
+- **State lives in Unit/Force**; the sim is otherwise stateless — rerun with a fresh `rng` for independent games. `simulate_game` copies the input forces, so original yamls stay pristine.
 - **No dependencies beyond PyYAML + stdlib.** Python 3.10+.
 - **No silent defaults** — missing required fields fail at load time.
-- **No illegal moves** — units can't move more than M, charge > 12",
-  fire out of range, fight if not engaged, or spend a stratagem their
-  detachment doesn't have.
+- **No illegal moves** — units can't move more than M, charge > 12", fire out of range, fight if not engaged, or spend a stratagem their detachment doesn't have.
 
 Comparison with v1:
 

@@ -62,9 +62,9 @@ MELTA:
   effect: melta
   params: {n: 2}
   notes: >
-    +N Damage when within half-range. STAT-APPROX: Jason's license says
-    apply the bonus always when 'normal case here' — we check actual
-    distance each shooting activation and apply if dist <= range/2.
+    +N Damage when within half-range. STAT-APPROX: scope allows applying
+    the bonus always, but we check actual distance each shooting
+    activation and apply only if dist <= range/2.
 
 RAPID_FIRE:
   category: weapon

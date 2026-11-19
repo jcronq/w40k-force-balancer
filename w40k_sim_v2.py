@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Warhammer 40k combat simulator v2.
 
-Scope (v2, per Jason 2026-11-18):
+Scope (v2):
   * Spatial 1D-collapse model (unit-to-unit scalar distance).
   * Full phase loop: Command -> Movement -> Shooting -> Charge -> Fight -> Morale.
   * Weapon special rules: Sustained Hits, Lethal Hits, Devastating Wounds,
@@ -28,7 +28,7 @@ raise RuntimeError at load time.
 
 STAT-APPROX flags on every expected-value shortcut; grep the file to audit.
 
-Statistical approximations active in this sim (per Jason's explicit license):
+Statistical approximations active in this sim (fidelity shortcuts):
   1. 1D distance collapse — each unit has a scalar `pos` = inches advanced
      from its own deployment edge. Left-right drift is ignored. Impact: no
      true LoS, no flanking, no pile-in geometry.
