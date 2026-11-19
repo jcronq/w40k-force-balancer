@@ -1,0 +1,15 @@
+# Shield Host of the Emperor — Adeptus Custodes detachment.
+# Source: https://wahapedia.ru/wh40k11ed/factions/adeptus-custodes/
+#
+# At start of each Command Phase declare MARTIAL_KATAH on one enemy unit.
+# All Custodes units get +1 to Wound rolls in melee against that unit.
+#
+# Stratagems available to the detachment (sim-implemented subset only).
+name: Shield Host of the Emperor
+faction: ADEPTUS_CUSTODES
+army_ability: MARTIAL_KATAH
+stratagems:
+  - HEROIC_INTERVENTION
+  - INSANE_BRAVERY
+  - COMMAND_REROLL
+  - RAPID_INGRESS

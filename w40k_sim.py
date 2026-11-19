@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Warhammer 40k combat simulator — strips the game down to stat-driven
-dice rolls so Jason can compare army compositions without trusting the
+dice rolls so army compositions can be compared without trusting the
 point system.
 
-Scope (v1, per Jason 2026-11-18):
+Scope (v1):
   * Two YAML force files in; win-odds out.
   * Standard 4-step combat: hit -> wound -> save -> FNP.
   * Movement, range, cover, and special rules are IGNORED.

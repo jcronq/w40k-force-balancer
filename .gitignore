@@ -4,3 +4,5 @@ _*.yaml
 .venv/
 .pytest_cache/
 *.log
+# Local developer sweep/experiment scripts (not for the public repo)
+sweep*.py

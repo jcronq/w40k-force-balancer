@@ -1,0 +1,304 @@
+# w40k_sim_v2 ability catalog.
+#
+# Every ability referenced by a force yaml (on a weapon, on a unit, or on a
+# detachment) must have an entry here. The sim raises RuntimeError at load
+# time if a force yaml names an ability missing from this catalog.
+#
+# Shape of each entry:
+#   id:           unique string; matches `abilities: [...]` in force yamls
+#   category:     weapon | unit | stratagem   (indexing / test bucketing)
+#   effect:       machine key the sim dispatches on — see dispatch_table
+#                 in w40k_sim_v2.py for which keys resolve to code paths.
+#   params:       default / allowed params. Values may be overridden per-
+#                 instance when the ability is declared on a weapon/unit,
+#                 e.g.  abilities: [{id: SUSTAINED_HITS, n: 2}].
+#   notes:        human text; not consumed by the sim.
+
+# ------------------------------------------------------------------------ #
+# WEAPON ABILITIES (section H of the spec).
+# ------------------------------------------------------------------------ #
+
+SUSTAINED_HITS:
+  category: weapon
+  effect: sustained_hits
+  params: {n: 1}
+  notes: >
+    Each unmodified hit roll of 6 (crit) scores N additional auto-hits.
+    Modelled statistically — adds expected (1/6) * N extra hits per shot.
+
+LETHAL_HITS:
+  category: weapon
+  effect: lethal_hits
+  params: {}
+  notes: >
+    Each unmodified hit roll of 6 auto-wounds, skipping the to-wound step.
+
+DEVASTATING_WOUNDS:
+  category: weapon
+  effect: devastating_wounds
+  params: {}
+  notes: >
+    Each unmodified wound roll of 6 becomes mortal wounds equal to the
+    weapon's Damage characteristic, bypassing saves AND FNP. STAT-APPROX:
+    mortal-wound Damage is NOT further rolled per-wound; in 11th ed
+    'Damage' is the weapon stat so this matches.
+
+TWIN_LINKED:
+  category: weapon
+  effect: twin_linked
+  params: {}
+  notes: Re-roll wound rolls (failed only — successes aren't re-rolled).
+
+TORRENT:
+  category: weapon
+  effect: torrent
+  params: {}
+  notes: >
+    Attacks auto-hit, skipping the hit roll. Still goes through wound/save/
+    FNP as normal.
+
+MELTA:
+  category: weapon
+  effect: melta
+  params: {n: 2}
+  notes: >
+    +N Damage when within half-range. STAT-APPROX: scope allows applying
+    the bonus always, but we check actual distance each shooting
+    activation and apply only if dist <= range/2.
+
+RAPID_FIRE:
+  category: weapon
+  effect: rapid_fire
+  params: {n: 1}
+  notes: +N shots when within half-range. Position check every shoot.
+
+BLAST:
+  category: weapon
+  effect: blast
+  params: {}
+  notes: +1 attack per 5 full models in target unit.
+
+HAZARDOUS:
+  category: weapon
+  effect: hazardous
+  params: {}
+  notes: >
+    On each unmodified hit roll of 1, bearer takes 1 mortal wound after
+    the weapon's activation (applied as self-damage per shot cluster).
+
+ANTI_INFANTRY:
+  category: weapon
+  effect: anti_keyword
+  params: {keyword: INFANTRY, threshold: 4}
+  notes: Wound rolls of N+ crit vs INFANTRY targets.
+
+ANTI_VEHICLE:
+  category: weapon
+  effect: anti_keyword
+  params: {keyword: VEHICLE, threshold: 4}
+
+ANTI_MONSTER:
+  category: weapon
+  effect: anti_keyword
+  params: {keyword: MONSTER, threshold: 4}
+
+ANTI_CHARACTER:
+  category: weapon
+  effect: anti_keyword
+  params: {keyword: CHARACTER, threshold: 2}
+
+ANTI_PSYKER:
+  category: weapon
+  effect: anti_keyword
+  params: {keyword: PSYKER, threshold: 4}
+
+ANTI_FLY:
+  category: weapon
+  effect: anti_keyword
+  params: {keyword: FLY, threshold: 4}
+
+PISTOL:
+  category: weapon
+  effect: pistol
+  params: {}
+  notes: Can be fired in melee. No effect elsewhere.
+
+HEAVY:
+  category: weapon
+  effect: heavy
+  params: {}
+  notes: +1 to hit if bearer Remained Stationary this turn.
+
+PRECISION:
+  category: weapon
+  effect: precision
+  params: {}
+  notes: >
+    Successful hits can be allocated to an attached Character. STAT-APPROX:
+    when a Character is attached to the target unit, 50% of landed hits
+    allocate directly to the Character (bypassing Look Out Sir).
+
+# ------------------------------------------------------------------------ #
+# UNIT ABILITIES (section I of the spec).
+# ------------------------------------------------------------------------ #
+
+FEEL_NO_PAIN:
+  category: unit
+  effect: feel_no_pain
+  params: {n: 5}
+  notes: >
+    Each wound suffered can be ignored on d6 >= N. Acts after FNP already
+    declared on the unit profile — this is the catalog mechanism for when
+    an ability grants it, vs. the native `FNP` field on the unit yaml.
+
+DEEP_STRIKE:
+  category: unit
+  effect: deep_strike
+  params: {arrival_round: 2, range_in: 9}
+  notes: >
+    Unit starts in reserves; arrives round 2 at `range_in` from closest
+    enemy. Cannot charge the turn it arrives. Can shoot.
+
+STEALTH:
+  category: unit
+  effect: stealth
+  params: {}
+  notes: Incoming ranged hit rolls get -1 modifier.
+
+FIGHTS_FIRST:
+  category: unit
+  effect: fights_first
+  params: {}
+
+FIGHTS_LAST:
+  category: unit
+  effect: fights_last
+  params: {}
+
+DEADLY_DEMISE:
+  category: unit
+  effect: deadly_demise
+  params: {n: 1, threshold: 4}
+  notes: >
+    On destruction, roll d6; if >= threshold, deal N mortal wounds to
+    closest enemy unit.
+
+INFILTRATORS:
+  category: unit
+  effect: infiltrators
+  params: {}
+  notes: >
+    Starts 9" closer to enemy than deployment gap would normally allow.
+    Implemented by reducing initial distance by 9" (bounded at 9").
+
+SCOUTS:
+  category: unit
+  effect: scouts
+  params: {n: 6}
+  notes: Pre-game move of up to N inches; reduces initial distance by N.
+
+FOR_THE_GREATER_GOOD:
+  category: unit
+  effect: for_the_greater_good
+  params: {}
+  notes: Unit may Fire Overwatch on 5+ instead of the usual 6+.
+
+MARKERLIGHT:
+  category: unit
+  effect: markerlight
+  params: {n: 1}
+  notes: >
+    Unit may dedicate up to N shots per shoot activation to place marker-
+    light tokens on a target. 4+ to place one marker. Tokens persist until
+    the start of next turn, cap 3.
+
+LEADER:
+  category: unit
+  effect: leader
+  params: {}
+  notes: >
+    Datasheet marker: this unit is a Character that can attach. The actual
+    attachment is declared on the squad's yaml via `leader: <unit_name>`.
+
+LOOK_OUT_SIR:
+  category: unit
+  effect: look_out_sir
+  params: {}
+  notes: >
+    Implicit for any unit a character is attached to — character cannot be
+    targeted while bodyguards remain (Precision bypasses).
+
+# ------------------------------------------------------------------------ #
+# STRATAGEMS (section K of the spec).
+# ------------------------------------------------------------------------ #
+
+FIRE_OVERWATCH:
+  category: stratagem
+  effect: strat_fire_overwatch
+  params: {cp: 1, phase: CHARGE}
+  notes: >
+    T'au-flavoured but universal. When an enemy unit declares a charge
+    against one of your units, that unit may fire its ranged weapons at
+    a fixed 6+ to hit (5+ with FOR_THE_GREATER_GOOD).
+
+RAPID_INGRESS:
+  category: stratagem
+  effect: strat_rapid_ingress
+  params: {cp: 1, phase: COMMAND}
+  notes: One deep-strike unit may arrive at end of round 1 instead of 2.
+
+HEROIC_INTERVENTION:
+  category: stratagem
+  effect: strat_heroic_intervention
+  params: {cp: 1, phase: CHARGE}
+  notes: >
+    Free 3" move into melee with an enemy that charged nearby. Modelled as
+    a bonus "charge success" when within 3" after enemy charge resolves.
+
+INSANE_BRAVERY:
+  category: stratagem
+  effect: strat_insane_bravery
+  params: {cp: 1, phase: MORALE}
+  notes: Auto-pass a battleshock test on one unit this round.
+
+COMMAND_REROLL:
+  category: stratagem
+  effect: strat_command_reroll
+  params: {cp: 1, phase: ANY}
+  notes: >
+    Re-roll any one die. STAT-APPROX: the sim applies this probabilistically
+    at the end of a weapon activation if the activation would otherwise
+    produce zero damage; keeps the economy spent without tracking every
+    single die.
+
+GRENADE:
+  category: stratagem
+  effect: strat_grenade
+  params: {cp: 1, phase: SHOOTING, attacks: 6, strength: 6, ap: 1, damage: 1}
+  notes: >
+    Infantry unit with GRENADES keyword may throw. 1d6 attacks at BS4+,
+    S6, AP-1, D1 against one INFANTRY target within 8". The 1d6 attack
+    count is sampled once per use so variance lands in the win/lose
+    distribution (expected value 3.5); each attack still rolls to hit
+    on 4+ via the normal shooting pipeline.
+
+# ------------------------------------------------------------------------ #
+# DETACHMENT ABILITIES — referenced by the two detachment yamls.
+# ------------------------------------------------------------------------ #
+
+MARTIAL_KATAH:
+  category: detachment
+  effect: det_martial_katah
+  params: {faction: ADEPTUS_CUSTODES}
+  notes: >
+    Shield Host of the Emperor — at the start of each command phase the
+    Custodes player nominates one enemy unit; all Custodes units get +1
+    to wound rolls in melee against that unit this round.
+
+MONTKA:
+  category: detachment
+  effect: det_montka
+  params: {faction: TAU_EMPIRE}
+  notes: >
+    One T'au unit per round (declared in command phase) gets to fire
+    twice in the shooting phase.

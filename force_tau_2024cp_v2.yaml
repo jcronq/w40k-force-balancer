@@ -1,0 +1,113 @@
+# T'au Empire 2024 Combat Patrol — v2 schema (full abilities).
+#
+# Sources (Wahapedia 11th ed, accessed 2026-11-18):
+#   - Commander Enforcer:  https://wahapedia.ru/wh40k11ed/factions/tau-empire/commander-in-enforcer-battlesuit
+#   - Breacher Team:       https://wahapedia.ru/wh40k11ed/factions/tau-empire/breacher-team
+#   - Pathfinders:         https://wahapedia.ru/wh40k11ed/factions/tau-empire/pathfinders
+#   - Devilfish:           https://wahapedia.ru/wh40k11ed/factions/tau-empire/devilfish
+#   - Mont'ka detachment:  https://wahapedia.ru/wh40k11ed/factions/tau-empire/
+#
+# Note: Breacher close-range S6 AP-2 D1 profile selected (expected in CP table
+# since forces start ~24" apart and move toward center quickly).
+name: "T'au Empire 2024 CP"
+faction: TAU_EMPIRE
+detachment: montka
+cp: 4
+
+units:
+  - name: "Commander in Enforcer Battlesuit"
+    models: 1
+    M: 10
+    T: 6
+    W: 7
+    Sv: 2
+    InvSv: 4
+    Ld: 6
+    OC: 1
+    keywords: [BATTLESUIT, CHARACTER, COMMANDER, FLY, TAU_EMPIRE, JUMP_PACK]
+    abilities:
+      - FOR_THE_GREATER_GOOD
+    weapons:
+      - name: "Cyclic ion blaster"
+        A: 4
+        BS: 3
+        S: 6
+        AP: 1
+        D: 2
+        range: 18
+        abilities:
+          - HAZARDOUS
+      - name: "Battlesuit fist"
+        A: 3
+        WS: 4
+        S: 6
+        AP: 0
+        D: 1
+        melee: true
+
+  - name: "Fire Warriors Breacher Team"
+    models: 10
+    M: 6
+    T: 3
+    W: 1
+    Sv: 4
+    Ld: 7
+    OC: 2
+    keywords: [INFANTRY, FIRE_WARRIORS, TAU_EMPIRE, GRENADES]
+    abilities:
+      - FOR_THE_GREATER_GOOD
+    weapons:
+      - name: "Pulse blaster (close)"
+        A: 2
+        BS: 4
+        S: 6
+        AP: 2
+        D: 1
+        range: 10
+
+  - name: "Pathfinders"
+    models: 10
+    M: 7
+    T: 3
+    W: 1
+    Sv: 5
+    Ld: 7
+    OC: 2
+    keywords: [INFANTRY, PATHFINDERS, TAU_EMPIRE, GRENADES]
+    abilities:
+      - FOR_THE_GREATER_GOOD
+      - {id: MARKERLIGHT, n: 1}
+      - {id: SCOUTS, n: 6}
+    weapons:
+      - name: "Pulse carbine"
+        A: 2
+        BS: 4
+        S: 5
+        AP: 0
+        D: 1
+        range: 24
+        abilities:
+          - {id: RAPID_FIRE, n: 1}
+
+  - name: "Devilfish"
+    models: 1
+    M: 12
+    T: 9
+    W: 11
+    Sv: 3
+    Ld: 7
+    OC: 3
+    keywords: [VEHICLE, DEVILFISH, FLY, TAU_EMPIRE]
+    abilities:
+      - FOR_THE_GREATER_GOOD
+      - {id: DEADLY_DEMISE, n: 1, threshold: 4}
+    weapons:
+      - name: "Burst cannon + seekers (aggregated)"
+        A: 6
+        BS: 4
+        S: 6
+        AP: 1
+        D: 1
+        range: 36
+        abilities:
+          - {id: SUSTAINED_HITS, n: 1}

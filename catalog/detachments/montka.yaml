@@ -1,0 +1,14 @@
+# Mont'ka — T'au Empire detachment.
+# Source: https://wahapedia.ru/wh40k11ed/factions/tau-empire/
+#
+# At start of each Command Phase nominate one T'au unit; that unit may
+# fire twice in the Shooting Phase this round. (Simplified from the
+# 11th-ed "pivot" mechanic.)
+name: Mont'ka
+faction: TAU_EMPIRE
+army_ability: MONTKA
+stratagems:
+  - FIRE_OVERWATCH
+  - COMMAND_REROLL
+  - GRENADE
+  - INSANE_BRAVERY

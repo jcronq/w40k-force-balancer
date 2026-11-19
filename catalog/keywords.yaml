@@ -1,0 +1,64 @@
+# w40k_sim_v2 keyword catalog.
+#
+# Every `keywords: [...]` entry in a force yaml must resolve to a keyword
+# here, or the simulator raises RuntimeError at load time.
+#
+# Sources: Wahapedia 11th ed common keyword list. These are the universal
+# keywords the sim understands — faction keywords (ADEPTUS CUSTODES, T'AU
+# EMPIRE, etc.) and sub-keywords (CUSTODIAN GUARD, FIRE WARRIORS) are also
+# allowed at the force-yaml level and bypass this validator, but the sim
+# only uses the universal keywords for rule resolution.
+
+universal:
+  # Battlefield role / model type
+  - INFANTRY
+  - VEHICLE
+  - MONSTER
+  - MOUNTED
+  - BEAST
+  - SWARM
+  # Character bucketing
+  - CHARACTER
+  - EPIC_HERO
+  # Movement / profile
+  - FLY
+  - TERMINATOR
+  - BATTLESUITE   # typo-insurance alias; preferred is BATTLESUIT
+  - BATTLESUIT
+  - JUMP_PACK
+  - BIKE
+  # Psyker / faction-cross
+  - PSYKER
+  - DAEMON
+  # Role flags used in catalog lookups
+  - GRENADES   # For the Grenade stratagem — unit needs this to use the strat.
+  - IMPERIUM
+  - CHAOS
+  - XENOS
+
+# Faction keywords — ONLY present so force yamls can echo "faction: ..." and
+# have it validated against this list. Rules in abilities.yaml / detachment
+# yamls key off these.
+factions:
+  - ADEPTUS_ASTARTES
+  - ADEPTUS_CUSTODES
+  - TAU_EMPIRE
+  - ORKS
+  - TYRANIDS
+
+# Sub-keywords allowed at datasheet level. Not exhaustive — add as needed.
+# When a force yaml names a sub-keyword not in this list, it's treated as
+# a free-form datasheet label and skipped during validation (so you can
+# write `keywords: [INFANTRY, CUSTODIAN_GUARD]` without updating this file
+# every time).
+sub:
+  - CUSTODIAN_GUARD
+  - ALLARUS_CUSTODIANS
+  - BLADE_CHAMPION
+  - FIRE_WARRIORS
+  - PATHFINDERS
+  - DEVILFISH
+  - COMMANDER
+  - INTERCESSOR_SQUAD
+  - HELLBLASTER_SQUAD
+  - CAPTAIN
