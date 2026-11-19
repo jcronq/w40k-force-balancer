@@ -1,0 +1,54 @@
+name: "Space Marines (sample)"
+units:
+  - name: "Intercessor Squad"
+    models: 5
+    T: 4
+    W: 2
+    Sv: 3
+    InvSv: null
+    FNP: null
+    weapons:
+      - name: "Bolt rifle"
+        A: 2
+        BS: 3
+        S: 4
+        AP: 1
+        D: 1
+      - name: "Chainsword"
+        A: 3
+        WS: 3
+        S: 4
+        AP: 0
+        D: 1
+        melee: true
+
+  - name: "Hellblaster Squad"
+    models: 5
+    T: 4
+    W: 2
+    Sv: 3
+    InvSv: null
+    FNP: null
+    weapons:
+      - name: "Plasma incinerator"
+        A: 2
+        BS: 3
+        S: 7
+        AP: 2
+        D: 1
+
+  - name: "Captain"
+    models: 1
+    T: 4
+    W: 5
+    Sv: 3
+    InvSv: 4
+    FNP: null
+    weapons:
+      - name: "Master-crafted power sword"
+        A: 5
+        WS: 2
+        S: 5
+        AP: 2
+        D: 2
+        melee: true

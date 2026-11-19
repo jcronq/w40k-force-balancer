@@ -1,0 +1,67 @@
+# Custodes 2024 Combat Patrol, 11th edition datasheets (best-effort from Wahapedia 11th ed).
+# Composition: 1 Blade Champion, 3 Allarus Custodians, 5 Custodian Guard.
+#
+# Weapon profiles are simplified (one representative line per unit's primary
+# weapon). Ignores special rules (precision, sustained hits, lethal hits,
+# devastating wounds, auras) per sim scope.
+name: "Custodes 2024 CP"
+units:
+  - name: "Blade Champion"
+    models: 1
+    T: 6
+    W: 6
+    Sv: 2
+    InvSv: 4
+    FNP: null
+    weapons:
+      - name: "Vaultswords"
+        A: 6
+        WS: 2
+        S: 7
+        AP: 3
+        D: 2
+        melee: true
+
+  - name: "Allarus Custodians"
+    models: 3
+    T: 6
+    W: 4
+    Sv: 2
+    InvSv: 4
+    FNP: null
+    weapons:
+      - name: "Castellan axe (melee)"
+        A: 4
+        WS: 2
+        S: 7
+        AP: 2
+        D: 2
+        melee: true
+      - name: "Balistus grenade launcher"
+        A: 1
+        BS: 2
+        S: 4
+        AP: 0
+        D: 1
+
+  - name: "Custodian Guard"
+    models: 5
+    T: 6
+    W: 3
+    Sv: 2
+    InvSv: 4
+    FNP: null
+    weapons:
+      - name: "Guardian spear (melee)"
+        A: 4
+        WS: 2
+        S: 7
+        AP: 2
+        D: 2
+        melee: true
+      - name: "Guardian spear (ranged)"
+        A: 2
+        BS: 2
+        S: 4
+        AP: 1
+        D: 1
