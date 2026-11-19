@@ -112,6 +112,14 @@ from .phases.shooting import _shoot_weapon_set, shooting_phase
 # --- Engine + CLI ---------------------------------------------------------
 from .cli import main
 from .engine.game import setup_initial_positions, simulate_game
+from .engine.logger import (
+    BattleLogger,
+    JsonlLogger,
+    MarkdownLogger,
+    MultiLogger,
+    NullLogger,
+    VerboseStdoutLogger,
+)
 from .engine.runner import (
     pct,
     print_matrix_report,
@@ -193,6 +201,13 @@ __all__ = [
     "simulate_many",
     "print_report",
     "print_matrix_report",
+    # Logger
+    "BattleLogger",
+    "JsonlLogger",
+    "MarkdownLogger",
+    "MultiLogger",
+    "NullLogger",
+    "VerboseStdoutLogger",
     # Constants
     "ALL_PHASES",
     "PHASE_COMMAND",

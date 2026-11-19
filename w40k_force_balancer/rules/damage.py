@@ -42,6 +42,15 @@ class ShotResult:
     mortal_char: int = 0
     self_mortals: int = 0
 
+    # Informational counters populated by `resolve_shots` and consumed by
+    # the battle logger. Not used by the damage-application code; they
+    # exist so an event stream can report "N attacks -> H hits -> W wounds
+    # -> U unsaved" without re-deriving intermediate state.
+    total_attacks: int = 0
+    hit_count: int = 0
+    wound_count: int = 0
+    unsaved_count: int = 0
+
     @property
     def body_damage(self) -> int:
         return sum(self.body_attacks) + self.mortal_body
