@@ -17,17 +17,24 @@ STAT-APPROX flags on every expected-value shortcut; grep the modules to audit.
 
 Statistical approximations active in this sim (fidelity shortcuts):
   1. 1D distance collapse — see `core/board.py`.
-  2. Precision character allocation — see `rules/weapon_abilities.py`.
-  3. Markerlight re-roll effect — see `phases/shooting.py`.
-  4. Grenade stratagem — samples 1d6 per use (expected value 3.5) —
+  2. Grenade stratagem — samples 1d6 per use (expected value 3.5) —
      see `phases/shooting.py`.
-  5. Overwatch applies the strat universally — see `phases/charge.py`.
-  6. Devastating Wound damage does not get further FNP ignore rolls —
+  3. Overwatch applies the strat universally — see `phases/charge.py`.
+  4. Devastating Wound damage does not get further FNP ignore rolls —
      see `rules/weapon_abilities.py`.
+  5. Fall Back heuristic (count-of-attacks, not expected damage) —
+     see `phases/movement.py`.
 
-The old independent-rolls save approximation that made this ledger a
-seven-item list was fixed 2026-11-18 (upstream commit "fix: save rolls
-pick lower target"); no longer a shortcut.
+Promoted from STAT-APPROX to full fidelity on 2026-11-18 by the
+adversarial-review fix pass:
+  * Independent-rolls save approximation (fixed upstream before the
+    package split).
+  * Precision character allocation — now per-hit Bernoulli, not
+    ceil(n/2) (finding #6).
+  * Markerlight re-roll — now a real re-roll in the hit loop, not a
+    BS patch clamped at 2+ (finding #3).
+  * Per-attack damage — overkill from a single attack no longer flows
+    through the squad (finding #1).
 
 Public API:
     load_catalogs(catalog_dir=None) -> Catalog
@@ -70,9 +77,11 @@ from .load.force import load_force
 
 # --- Rule implementations ------------------------------------------------
 from .rules.damage import (
+    ShotResult,
     apply_damage_to_squad,
     apply_damage_with_attachment,
     apply_self_mortals,
+    apply_self_mortals_rng,
 )
 from .rules.stratagems import _can_use_strat, _spend_strat
 from .rules.unit_abilities import apply_deadly_demise, best_fnp
@@ -136,7 +145,9 @@ __all__ = [
     "apply_damage_to_squad",
     "apply_damage_with_attachment",
     "apply_self_mortals",
+    "apply_self_mortals_rng",
     "apply_deadly_demise",
+    "ShotResult",
     # Phases
     "command_phase",
     "movement_phase",

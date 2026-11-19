@@ -261,8 +261,11 @@ def test_heavy_hit_bonus_when_stationary(board_default):
 
 # --- Precision ----------------------------------------------------------- #
 
-def test_precision_half_of_hits_go_to_attached_character(board_default):
-    """Rule: 50% of total damage lands on the attached character (STAT-APPROX)."""
+def test_precision_bernoulli_allocates_per_hit(board_default):
+    """Rule (post-fix #6): each landed attack independently rolls 50/50 for
+    character vs body. Deterministic with rigged Bernoulli rolls — 4,4,1,1
+    means first two to char, last two to body.
+    """
     w = make_weapon(
         attacks=4, skill=3, strength=4, damage=1,
         abilities={"PRECISION": {}},
@@ -273,7 +276,35 @@ def test_precision_half_of_hits_go_to_attached_character(board_default):
                       keywords=["INFANTRY"])
     squad.attached_character = character
     character.attached_to = squad
-    # 4 shots, all hit, all wound, all saves fail => 4 damage pre-split.
-    body, char, _ = _resolve(w, squad, rolls=[5, 5, 5, 5,  5, 5, 5, 5,  1, 1, 1, 1])
-    # 50/50 split with half-up on character: ceil(4/2) = 2 char, 2 body.
+    # hits x4 / wounds x4 / saves x4 / Bernoulli x4 — 4,4,1,1 → 2 char, 2 body
+    body, char, _ = _resolve(w, squad,
+                             rolls=[5, 5, 5, 5,  5, 5, 5, 5,  1, 1, 1, 1,  4, 4, 1, 1])
     assert (body, char) == (2, 2)
+
+
+def test_precision_empirical_rate_is_50pct(board_default):
+    """Pin finding #6: Monte-Carlo the Bernoulli split and demand ~50%
+    allocation to Character, within 1pp over 100k trials. Pre-fix used
+    ceil(n/2) which overcounted by ~11pp on odd totals."""
+    w = make_weapon(
+        attacks=1, skill=2, strength=4, damage=1,
+        abilities={"PRECISION": {}},
+    )
+    character = make_unit(name="Char", models=1, toughness=4, wounds_per_model=10**9, save=2,
+                           keywords=["INFANTRY", "CHARACTER"])
+    squad = make_unit(name="Squad", models=10**9, toughness=4, wounds_per_model=1, save=7,
+                      keywords=["INFANTRY"])
+    squad.attached_character = character
+    character.attached_to = squad
+    attacker = make_unit(name="Atk", models=1, weapons=[w])
+    force = make_force("F", attacker)
+    rng = random.Random(0)
+    total_char = 0
+    total_body = 0
+    N = 100_000
+    for _ in range(N):
+        shot = sim.resolve_shots(attacker, w, squad, 12.0, force, rng)
+        total_body += len(shot.body_attacks)
+        total_char += len(shot.char_attacks)
+    rate_char = total_char / (total_char + total_body)
+    assert abs(rate_char - 0.5) < 0.01, f"Precision Bernoulli off: {rate_char:.4f}"

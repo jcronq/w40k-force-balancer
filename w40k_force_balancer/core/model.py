@@ -182,6 +182,8 @@ class Force:
     markerlights: dict[int, int] = field(default_factory=dict)   # id(enemy_unit) -> marker count
     used_strats_this_round: set[tuple[str, int]] = field(default_factory=set)   # (strat_id, round)
     used_strats_this_phase: set[str] = field(default_factory=set)
+    # (strat_id, id(unit), round) — once-per-turn-per-unit gate (finding #10).
+    used_strats_this_turn_per_unit: set[tuple[str, int, int]] = field(default_factory=set)
     rapid_ingress_used: bool = False
     insane_bravery_used_this_round: bool = False
 

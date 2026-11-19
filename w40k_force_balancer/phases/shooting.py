@@ -7,7 +7,7 @@ from dataclasses import replace
 from ..core import board as _board
 from ..core.dice import roll_d6
 from ..core.model import Force, Unit, Weapon
-from ..rules.damage import apply_damage_with_attachment, apply_self_mortals
+from ..rules.damage import apply_damage_with_attachment, apply_self_mortals_rng
 from ..rules.stratagems import _can_use_strat, _spend_strat
 from ..rules.unit_abilities import apply_deadly_demise
 from ..rules.weapon_abilities import resolve_shots
@@ -46,7 +46,7 @@ def shooting_phase(
         ):
             target = _board.closest_enemy_within(unit, enemy, 8)
             if target is not None and target.has_keyword("INFANTRY"):
-                _spend_strat(current, "GRENADE", round_no)
+                _spend_strat(current, "GRENADE", round_no, unit)
                 # Grenade = 1d6 S6 AP-1 D1 attacks. Sampled once per use so
                 # variance lands in the win/lose distribution; expected value
                 # is 3.5. Fired from a single-model "virtual thrower" so
@@ -63,12 +63,12 @@ def shooting_phase(
                     remained_stationary=unit.remained_stationary,
                 )
                 dist = _board.pair_distance(unit, target)
-                body, char, _ = resolve_shots(ephemeral_thrower, virtual, target, dist, current, rng)
-                deaths = apply_damage_with_attachment(target, body, char, current, enemy)
+                shot = resolve_shots(ephemeral_thrower, virtual, target, dist, current, rng)
+                deaths = apply_damage_with_attachment(target, shot, None, current, enemy)
                 for d in deaths:
                     apply_deadly_demise(d, current, rng)
                 if verbose:
-                    print(f"    [{current.name}] GRENADE strat vs {target.name} -> {body}+{char} dmg")
+                    print(f"    [{current.name}] GRENADE strat vs {target.name} -> {shot.body_damage}+{shot.char_damage} dmg")
 
         _shoot_weapon_set(
             unit,
@@ -85,21 +85,6 @@ def shooting_phase(
             )
             if verbose:
                 print(f"    [{current.name}] Mont'ka: {unit.name} fires again")
-
-
-def _resolve_markerlights(
-    attacker: Unit,
-    weapon: Weapon,
-    current: Force,
-    enemy: Force,
-    rng: random.Random,
-) -> None:
-    """If the unit has MARKERLIGHT, dedicate 1 shot per model to placing
-    markers on the closest enemy target before firing the rest. STAT-APPROX:
-    uses expected-value increment (1 model = 1 shot = 0.5 marker on avg at 4+)."""
-    # No-op scaffold — actual markerlight wiring happens in _shoot_weapon_set
-    # when MARKERLIGHT unit fires. See markerlight integration below.
-    pass
 
 
 def _shoot_weapon_set(
@@ -143,26 +128,26 @@ def _shoot_weapon_set(
             continue
         target = min(candidates, key=lambda e: e.total_wounds)
         dist = _board.pair_distance(unit, target)
-        # STAT-APPROX: markerlight hit-reroll — if 1+ markers on target and
-        # T'au force, apply at-least-one-reroll on hit roll (modelled by
-        # +0.5/6 bump to effective skill which is messy). Instead we bump the
-        # effective hit skill by 1 if 2+ markers (re-roll all failed), or re-
-        # roll 1s (-small bump) if 1 marker. Approximation applied by temp
-        # patching weapon.skill.
-        patched_weapon = weapon
+        # Markerlight re-roll gate (fix #3): no more BS patching. Instead
+        # pass a `marker_rerolls` directive into resolve_shots so the hit
+        # loop re-rolls after the modifier cap applies.
         marks = current.markerlights.get(id(target), 0)
-        if marks >= 2 and not weapon.melee and (current.faction == "TAU_EMPIRE"):
-            patched_weapon = replace(weapon, skill=max(2, weapon.skill - 1))  # re-roll all fails ≈ -1 to skill target
-        elif marks == 1 and not weapon.melee and (current.faction == "TAU_EMPIRE"):
-            # Re-roll 1s -> small bump (~ -0.5 effective skill). We skip for simplicity.
-            patched_weapon = weapon
+        marker_rerolls = None
+        if not weapon.melee and current.faction == "TAU_EMPIRE":
+            if marks >= 2:
+                marker_rerolls = "all_fails"
+            elif marks == 1:
+                marker_rerolls = "ones"
 
-        body, char, self_mortals = resolve_shots(unit, patched_weapon, target, dist, current, rng)
-        if self_mortals:
-            apply_self_mortals(unit, self_mortals)
+        shot = resolve_shots(unit, weapon, target, dist, current, rng,
+                             marker_rerolls=marker_rerolls)
+        if shot.self_mortals:
+            # Hazardous backlash (fix #7): routed through best_fnp before
+            # drain. Previously bypassed FNP entirely.
+            apply_self_mortals_rng(unit, shot.self_mortals, rng)
 
-        deaths = apply_damage_with_attachment(target, body, char, current, enemy)
+        deaths = apply_damage_with_attachment(target, shot, None, current, enemy)
         for d in deaths:
             apply_deadly_demise(d, current, rng)
-        if verbose and (body or char):
-            print(f"    [{current.name}] {unit.name} {weapon.name} -> {target.name} dmg={body}+{char}")
+        if verbose and (shot.body_damage or shot.char_damage):
+            print(f"    [{current.name}] {unit.name} {weapon.name} -> {target.name} dmg={shot.body_damage}+{shot.char_damage}")

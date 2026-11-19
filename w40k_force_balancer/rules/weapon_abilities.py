@@ -9,16 +9,24 @@ point where the roll happens.
 STAT-APPROX flags on every expected-value shortcut; grep the file to audit.
 
 STAT-APPROX ledger (applies to resolve_shots):
-  * Precision character allocation — when a Precision weapon targets a
-    bodyguard squad with an attached character, exactly 50% of landed
-    damage lands on the character directly (ceil(n/2)). Actual 40k lets
-    the attacker allocate per-hit.
   * Devastating Wound damage does not get further FNP ignore rolls.
 
 The independent-rolls save approximation that previously lived here was
 fixed 2026-11-18 (upstream commit "fix: save rolls pick lower target"):
 the save step now rolls once against the better (lower) of modified
 armor and invuln.
+
+Per-attack damage (finding #1, 2026-11-18): normal attacks each land on
+one model; overkill when the model dies is discarded. Mortal wounds
+(from Devastating Wounds) still pool-and-spill through the squad.
+
+Precision per-hit Bernoulli (finding #6, 2026-11-18): each landed attack
+with PRECISION independently flips 50/50 for Character vs Body
+allocation. Previously allocated ceil(total/2) to Character, which
+over-represented Precision by ~11pp for odd attack counts.
+
+Wound-modifier cap (finding #9, 2026-11-18): symmetric clamp mirrors the
+hit-modifier cap.
 """
 from __future__ import annotations
 
@@ -26,6 +34,7 @@ import random
 
 from ..core.dice import clamp, roll_d6, to_wound_threshold
 from ..core.model import Force, Unit, Weapon
+from .damage import ShotResult
 from .unit_abilities import best_fnp
 
 
@@ -37,18 +46,24 @@ def resolve_shots(
     attacker_force: "Force",
     rng: random.Random,
     allow_crit_hit_bonus: bool = True,
-) -> tuple[int, int, int]:
+    marker_rerolls: str | None = None,
+) -> ShotResult:
     """Resolve one activation of a weapon by `attacker` against `target`.
 
-    Returns (damage_points_to_bodyguard, damage_points_to_character, self_mortals).
-    `self_mortals` is Hazardous backlash from 1s on hit rolls.
+    Returns a `ShotResult` carrying per-attack damage lists (body + char)
+    plus mortal pools and self-mortals from Hazardous backlash. The result
+    still tuple-unpacks as `(body_damage, char_damage, self_mortals)` for
+    legacy callers.
 
-    All weapon abilities + unit abilities are applied here.
+    `marker_rerolls`: optional markerlight re-roll gate on the attacker's
+    hit step. `"all_fails"` lets each missed hit re-roll once (= 2+
+    markers); `"ones"` re-rolls only raw 1s (= 1 marker); `None` is the
+    default no-reroll path.
     """
     if not weapon.melee:
         # Range gate: can only shoot if within weapon range.
         if distance > weapon.range_in:
-            return (0, 0, 0)
+            return ShotResult()
 
     # --- Shot count -------------------------------------------------------
     total_shots = weapon.attacks * attacker.models
@@ -63,7 +78,7 @@ def resolve_shots(
             total_shots += int(rf.get("n", 1)) * attacker.models
 
     if total_shots <= 0:
-        return (0, 0, 0)
+        return ShotResult()
 
     # --- Hit modifiers ----------------------------------------------------
     skill = weapon.skill
@@ -89,22 +104,54 @@ def resolve_shots(
     hazardous_mortals = 0
     lethal_autowounds = 0
 
+    def _roll_one_hit(initial: int) -> tuple[int, int, int]:
+        """Score one hit attempt. Returns (hits_delta, crit_delta, hazardous_delta)."""
+        hits_d = 0
+        crit_d = 0
+        haz_d = 0
+        if initial == 1 and hazardous:
+            haz_d = 1
+        if initial == 1:
+            return hits_d, crit_d, haz_d
+        if initial == 6:
+            crit_d = 1
+            hits_d = 1
+        elif initial >= effective_hit:
+            hits_d = 1
+        return hits_d, crit_d, haz_d
+
     if torrent:
         hits = total_shots
         crit_hits = 0
     else:
         for _ in range(total_shots):
             raw = roll_d6(rng)
-            if raw == 1 and hazardous:
-                hazardous_mortals += 1
-            # Unmodified 1 always misses; unmodified 6 always hits (crit).
-            if raw == 1:
-                continue
-            if raw == 6:
-                crit_hits += 1
-                hits += 1
-            elif raw >= effective_hit:
-                hits += 1
+            h, c, haz = _roll_one_hit(raw)
+            hits += h
+            crit_hits += c
+            hazardous_mortals += haz
+            # Markerlight re-roll gate (fix #3). Applies to missed rolls
+            # only; passes get no re-roll. For "ones", only raw 1s re-roll.
+            # 11e: modifiers apply BEFORE the re-roll decision, so a raw 1
+            # that is a "miss" is eligible for the ones-only re-roll; a
+            # raw hit that becomes a miss via -1 modifier is eligible for
+            # the all-fails re-roll but not the ones-only re-roll.
+            missed = (h == 0)
+            if missed and marker_rerolls:
+                eligible = (
+                    marker_rerolls == "all_fails"
+                    or (marker_rerolls == "ones" and raw == 1)
+                )
+                if eligible:
+                    raw2 = roll_d6(rng)
+                    h2, c2, haz2 = _roll_one_hit(raw2)
+                    hits += h2
+                    crit_hits += c2
+                    # Hazardous backlash does NOT re-trigger on the re-roll's 1
+                    # — 11e Hazardous looks at the FINAL unmodified roll; the
+                    # re-roll replaces the original, so we only count the
+                    # re-roll's hazard flag.
+                    hazardous_mortals = hazardous_mortals - haz + haz2
 
     # Sustained Hits: crit hits add n additional auto-hits
     if sustained and allow_crit_hit_bonus:
@@ -116,7 +163,7 @@ def resolve_shots(
         hits -= crit_hits   # those hits bypass to-wound
 
     if hits <= 0 and lethal_autowounds <= 0:
-        return (0, 0, hazardous_mortals)
+        return ShotResult(self_mortals=hazardous_mortals)
 
     # --- Wound step -------------------------------------------------------
     wound_th = to_wound_threshold(weapon.strength, target.toughness)
@@ -134,6 +181,8 @@ def resolve_shots(
     wound_mod = 0
     if weapon.melee and attacker_force.martial_katah_target is target:
         wound_mod = -1  # LOWER target = easier
+    # Wound-modifier cap (finding #9): symmetric +/- 1 cap matching hit cap.
+    wound_mod = clamp(wound_mod, -1, 1)
     wound_target = clamp(wound_th + wound_mod, 2, 6)
 
     twin_linked = "TWIN_LINKED" in weapon.abilities
@@ -160,23 +209,16 @@ def resolve_shots(
     wounds += lethal_autowounds
 
     if wounds <= 0:
-        return (0, 0, hazardous_mortals)
+        return ShotResult(self_mortals=hazardous_mortals)
 
     # --- Devastating Wounds split (bypass save + FNP) ---------------------
     devastating_wounds = crit_wounds if devastating else 0
     normal_wounds = wounds - devastating_wounds
 
     # --- Save step for the normal wounds ---------------------------------
-    # 40k rule: defender picks ONE save type — modified armor OR invulnerable,
-    # whichever has the better (lower) target. Previously the sim rolled both
-    # independently and passed on either, which inflates defensive durability
-    # whenever AP makes the modified armor worse than the invuln. Bug fixed
-    # 2026-11-18. Now picks the lower target and rolls once.
     unsaved = 0
     modified_save = target.save + weapon.ap
     inv = target.inv_save
-    # Compute effective save target. Modified save that exceeds 6 means no
-    # armor save available; fall back to inv if present, else guaranteed fail.
     armor_possible = modified_save <= 6
     if armor_possible and inv is not None:
         save_target = min(modified_save, inv)
@@ -200,30 +242,39 @@ def resolve_shots(
         half = weapon.range_in / 2.0
         if distance <= half:
             damage_per += int(melta.get("n", 2))
-    # Devastating wounds: `damage` mortals per crit, bypassing saves+FNP.
-    mortal_damage_points = devastating_wounds * weapon.damage
 
-    raw_damage = unsaved * damage_per
-
-    # --- FNP (applied per wound point, not per unsaved-hit) --------------
+    # Per-attack FNP (fix #1): each unsaved attack rolls its own FNP dice,
+    # one per wound point, and the surviving damage lands on a single
+    # model. Overkill when the model dies is lost.
     fnp = best_fnp(target)
-    if fnp is not None and raw_damage > 0:
-        ignored = sum(1 for _ in range(raw_damage) if roll_d6(rng) >= fnp)
-        raw_damage = max(0, raw_damage - ignored)
-    # Mortals from devastating wounds ignore FNP. (11th ed Dev Wounds are
-    # mortal wounds now; some editions let FNP apply. We follow 11th:
-    # mortals bypass FNP unless native unit has a specific anti-mortal FNP.
-    # For sim simplicity, FNP does NOT apply to Devastating Wound mortals.)
+    precision = (
+        "PRECISION" in weapon.abilities and target.attached_character is not None
+    )
 
-    total_damage = raw_damage + mortal_damage_points
+    result = ShotResult(self_mortals=hazardous_mortals)
 
-    # --- Precision: Character allocation ---------------------------------
-    damage_character = 0
-    damage_body = total_damage
-    if "PRECISION" in weapon.abilities and target.attached_character is not None:
-        # STAT-APPROX: 50% of total damage lands on the character directly,
-        # bypassing Look Out Sir. Round half-up.
-        damage_character = (total_damage + 1) // 2
-        damage_body = total_damage - damage_character
+    for _ in range(unsaved):
+        dmg = damage_per
+        if fnp is not None and dmg > 0:
+            ignored = sum(1 for _ in range(dmg) if roll_d6(rng) >= fnp)
+            dmg = max(0, dmg - ignored)
+        if dmg <= 0:
+            continue
+        # Precision per-hit Bernoulli (fix #6): each surviving attack
+        # independently allocates to Character 50% of the time.
+        if precision and roll_d6(rng) >= 4:
+            result.char_attacks.append(dmg)
+        else:
+            result.body_attacks.append(dmg)
 
-    return (damage_body, damage_character, hazardous_mortals)
+    # Devastating-Wound mortals: pooled, spill. Precision also directs
+    # mortals — each dev-wound mortal independently rolls 50/50 for char.
+    if devastating_wounds > 0:
+        dw_damage_per = weapon.damage   # dev wounds use base damage (sim policy)
+        for _ in range(devastating_wounds):
+            if precision and roll_d6(rng) >= 4:
+                result.mortal_char += dw_damage_per
+            else:
+                result.mortal_body += dw_damage_per
+
+    return result

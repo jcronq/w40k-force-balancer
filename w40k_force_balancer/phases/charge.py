@@ -7,7 +7,7 @@ from dataclasses import replace
 from ..core import board as _board
 from ..core.dice import roll_2d6
 from ..core.model import Force, Unit
-from ..rules.damage import apply_damage_with_attachment, apply_self_mortals
+from ..rules.damage import apply_damage_with_attachment, apply_self_mortals_rng
 from ..rules.stratagems import _can_use_strat, _spend_strat
 from ..rules.unit_abilities import apply_deadly_demise
 from ..rules.weapon_abilities import resolve_shots
@@ -101,11 +101,11 @@ def _do_overwatch(
         if weapon.melee or weapon.range_in < dist:
             continue
         patched = replace(weapon, skill=ow_skill)
-        body, char, self_mortals = resolve_shots(target, patched, charger, dist, target_force, rng)
-        if self_mortals:
-            apply_self_mortals(target, self_mortals)
-        deaths = apply_damage_with_attachment(charger, body, char, target_force, charger_force)
+        shot = resolve_shots(target, patched, charger, dist, target_force, rng)
+        if shot.self_mortals:
+            apply_self_mortals_rng(target, shot.self_mortals, rng)
+        deaths = apply_damage_with_attachment(charger, shot, None, target_force, charger_force)
         for d in deaths:
             apply_deadly_demise(d, target_force, rng)
-        if verbose and (body or char):
-            print(f"    [{target_force.name}] OVERWATCH {target.name}->{charger.name} dmg={body}+{char}")
+        if verbose and (shot.body_damage or shot.char_damage):
+            print(f"    [{target_force.name}] OVERWATCH {target.name}->{charger.name} dmg={shot.body_damage}+{shot.char_damage}")

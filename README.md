@@ -222,11 +222,12 @@ Fidelity does not need to be 100% when statistics can model a hard-to-measure ou
 Active approximations:
 
 1. 1D distance collapse (no left-right drift, no LoS graph).
-2. Precision character allocation is a flat 50/50 split.
-3. Markerlight re-roll effect modelled as -1 to skill target for 2+ markers.
+2. ~~Precision character allocation is a flat 50/50 split.~~ Fixed 2026-11-18 (finding #6): per-hit Bernoulli(0.5) instead of ceil(n/2).
+3. ~~Markerlight re-roll effect modelled as -1 to skill target for 2+ markers.~~ Fixed 2026-11-18 (finding #3): real re-roll in the hit loop (all failed for 2+ markers, raw 1s for 1 marker).
 4. ~~Grenade stratagem fires at expected value (6 shots), not sampled 1d6.~~ Fixed 2026-11-18: now samples 1d6 properly each use. Expected value is 3.5, not 6.
 5. Overwatch applies the strat universally when it would land.
 6. Devastating-wound mortals bypass FNP.
+7. Fall Back heuristic (finding #5): compares total melee attack counts, not expected damage.
 
 ## Known ambiguities
 

@@ -75,9 +75,9 @@ def _fight_activation(
             continue
         target = min(engaged, key=lambda e: e.total_wounds)
         dist = 0.0
-        body, char, _ = resolve_shots(unit, weapon, target, dist, unit_force, rng)
-        deaths = apply_damage_with_attachment(target, body, char, unit_force, enemy_force)
+        shot = resolve_shots(unit, weapon, target, dist, unit_force, rng)
+        deaths = apply_damage_with_attachment(target, shot, None, unit_force, enemy_force)
         for d in deaths:
             apply_deadly_demise(d, unit_force, rng)
-        if verbose and (body or char):
-            print(f"    [{unit_force.name}] FIGHT {unit.name} {weapon.name} -> {target.name} dmg={body}+{char}")
+        if verbose and (shot.body_damage or shot.char_damage):
+            print(f"    [{unit_force.name}] FIGHT {unit.name} {weapon.name} -> {target.name} dmg={shot.body_damage}+{shot.char_damage}")
