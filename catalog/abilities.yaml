@@ -276,9 +276,11 @@ GRENADE:
   effect: strat_grenade
   params: {cp: 1, phase: SHOOTING, attacks: 6, strength: 6, ap: 1, damage: 1}
   notes: >
-    Infantry unit with GRENADES keyword may throw. 1d6 S6 AP-1 D1 hits
-    (no further hit roll needed — auto-hit) against one INFANTRY target
-    within 8". We model as 6 shots at BS4 to approximate 1d6 expected.
+    Infantry unit with GRENADES keyword may throw. 1d6 attacks at BS4+,
+    S6, AP-1, D1 against one INFANTRY target within 8". The 1d6 attack
+    count is sampled once per use so variance lands in the win/lose
+    distribution (expected value 3.5); each attack still rolls to hit
+    on 4+ via the normal shooting pipeline.
 
 # ------------------------------------------------------------------------ #
 # DETACHMENT ABILITIES — referenced by the two detachment yamls.

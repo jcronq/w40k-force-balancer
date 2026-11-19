@@ -262,6 +262,27 @@ def test_finding7_hazardous_backlash_goes_through_fnp(board_default):
 
 
 # =========================================================================== #
+# Finding #8 — Grenade catalog description matches the code
+# =========================================================================== #
+
+
+def test_finding8_grenade_notes_mention_bs4(repo_root):
+    """Catalog note should describe BS4+ behavior, not 'auto-hit'. Scope
+    the check to the GRENADE: block to avoid matching Sustained Hits /
+    Torrent docstrings elsewhere."""
+    path = repo_root / "catalog" / "abilities.yaml"
+    text = path.read_text()
+    # Isolate the GRENADE block.
+    idx = text.index("GRENADE:")
+    block = text[idx:]
+    end = block.find("\n# ---")
+    if end != -1:
+        block = block[:end]
+    assert "BS4" in block or "BS 4" in block, block
+    assert "auto-hit" not in block, block
+
+
+# =========================================================================== #
 # Finding #9 — Wound modifier cap is symmetric (±1)
 # =========================================================================== #
 
