@@ -18,8 +18,8 @@ import w40k_force_balancer as sim
 
 def _example_forces(repo_root):
     return (
-        str(repo_root / "force_custodes_2024cp_v2.yaml"),
-        str(repo_root / "force_tau_2024cp_v2.yaml"),
+        str(repo_root / "forces" / "force_custodes_2024cp_v2.yaml"),
+        str(repo_root / "forces" / "force_tau_2024cp_v2.yaml"),
     )
 
 

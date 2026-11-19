@@ -13,17 +13,17 @@ Both kept in-tree so results can be diffed.
 
 ```bash
 # v2 full head-to-head, 5000 sims x 5 rounds
-python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
+python3 -m w40k_force_balancer forces/force_custodes_2024cp_v2.yaml forces/force_tau_2024cp_v2.yaml
 
 # Backwards-compat shim — same thing, old invocation
-python3 w40k_sim_v2.py force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
+python3 w40k_sim_v2.py forces/force_custodes_2024cp_v2.yaml forces/force_tau_2024cp_v2.yaml
 
 # Verbose single-game trace (phase-by-phase decision log)
-python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml --verbose
+python3 -m w40k_force_balancer forces/force_custodes_2024cp_v2.yaml forces/force_tau_2024cp_v2.yaml --verbose
 
 # Side-by-side with v1
-python3 w40k_sim.py force_custodes_2024cp.yaml force_tau_2024cp.yaml
-python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml
+python3 w40k_sim.py forces/force_custodes_2024cp.yaml forces/force_tau_2024cp.yaml
+python3 -m w40k_force_balancer forces/force_custodes_2024cp_v2.yaml forces/force_tau_2024cp_v2.yaml
 
 # Custom board
 python3 -m w40k_force_balancer A.yaml B.yaml --board-width 60 --board-height 44 --deployment-gap 36
@@ -123,7 +123,7 @@ Omit `doctrine:` entirely and the engine falls back to the `default` doctrine (t
 Run every `(doctrine_a, doctrine_b)` permutation against each other:
 
 ```bash
-python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml --matrix
+python3 -m w40k_force_balancer forces/force_custodes_2024cp_v2.yaml forces/force_tau_2024cp_v2.yaml --matrix
 ```
 
 Each cell prints `A-wins% / B-wins% / draws%` on the 50/50 first-turn blend. The summary at the end calls out:
@@ -302,6 +302,8 @@ w40k_force_balancer/
     game.py                  # setup_initial_positions + simulate_game (one match)
     runner.py                # simulate_many + print_report + simulate_matrix
 
+forces/                      # ships-with-sim force YAMLs (v1 + v2, Custodes/Tau/Marines/Orks)
+
 tests/                       # mirrored structure
   core/{test_dice, test_model, test_board}.py
   load/{test_force, test_doctrines, test_force_doctrines}.py
@@ -334,7 +336,7 @@ catalog/
 
 Unknown ability, keyword, detachment, or faction names fail loud at load time with a `RuntimeError` naming the missing ref. Add to the catalog before referencing in a force YAML.
 
-The v2 force yamls (`force_custodes_2024cp_v2.yaml`, `force_tau_2024cp_v2.yaml`) stay at the repo root alongside the v1 force yamls so both simulators find them with the same relative path.
+Force YAMLs live under `forces/` — v1 and v2 side-by-side (`forces/force_custodes_2024cp.yaml`, `forces/force_custodes_2024cp_v2.yaml`, `forces/force_tau_2024cp.yaml`, `forces/force_tau_2024cp_v2.yaml`, plus `forces/force_marines.yaml` / `forces/force_orks.yaml`). Both the v1 and v2 simulators resolve paths relative to the invocation cwd, so pass `forces/force_*.yaml` on the CLI.
 
 ## Force YAML schema
 

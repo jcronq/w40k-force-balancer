@@ -29,8 +29,8 @@ def _board():
 
 
 def test_logger_captures_full_game(catalog, repo_root, tmp_path):
-    custodes = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    tau = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    custodes = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    tau = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
     jsonl_path = tmp_path / "game.jsonl"
     with JsonlLogger(jsonl_path) as logger:
         sim.simulate_game(custodes, tau, _board(), rounds=5,
@@ -59,8 +59,8 @@ def test_logger_captures_full_game(catalog, repo_root, tmp_path):
 
 
 def test_markdown_report_mentions_key_phases(catalog, repo_root, tmp_path):
-    custodes = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    tau = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    custodes = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    tau = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
     md_path = tmp_path / "game.md"
     with MarkdownLogger(md_path) as logger:
         sim.simulate_game(custodes, tau, _board(), rounds=5,
@@ -77,8 +77,8 @@ def test_markdown_report_mentions_key_phases(catalog, repo_root, tmp_path):
 
 
 def test_markdown_and_jsonl_describe_same_game(catalog, repo_root, tmp_path):
-    custodes = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    tau = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    custodes = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    tau = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
 
     md_path = tmp_path / "game.md"
     jsonl_path = tmp_path / "game.jsonl"
@@ -109,8 +109,8 @@ def test_markdown_and_jsonl_describe_same_game(catalog, repo_root, tmp_path):
 
 def test_verbose_stream_mirrors_logger(catalog, repo_root):
     """Stdout verbose logger produces non-empty output for a real game."""
-    custodes = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    tau = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    custodes = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    tau = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
     buf = io.StringIO()
     logger = VerboseStdoutLogger(buf)
     sim.simulate_game(custodes, tau, _board(), rounds=5,
@@ -125,8 +125,8 @@ def test_verbose_stream_mirrors_logger(catalog, repo_root):
 
 def test_null_logger_has_zero_overhead_on_default_runs(catalog, repo_root):
     """Default simulate_game (no logger passed) still returns a valid result."""
-    custodes = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    tau = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    custodes = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    tau = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
     r = sim.simulate_game(custodes, tau, _board(), rounds=5,
                           a_goes_first=True, rng=random.Random(0))
     assert r in ("A", "B", "draw")
@@ -135,8 +135,8 @@ def test_null_logger_has_zero_overhead_on_default_runs(catalog, repo_root):
 def test_known_seed_game_has_same_winner_each_run(catalog, repo_root, tmp_path):
     """Replay invariant — seed=0 game produces the same winner twice,
     and the jsonl event counts match."""
-    custodes = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    tau = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    custodes = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    tau = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
 
     results = []
     event_counts = []

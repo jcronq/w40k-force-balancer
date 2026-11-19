@@ -157,7 +157,7 @@ units:
 
 def test_full_custodes_load_succeeds(catalog, repo_root):
     """Sanity: the ships-with-sim force yamls all load clean."""
-    force = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
+    force = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
     assert force.name == "Custodes 2024 CP"
     assert force.detachment is not None
     # Blade Champion attaches to Custodian Guard
@@ -167,7 +167,7 @@ def test_full_custodes_load_succeeds(catalog, repo_root):
 
 
 def test_full_tau_load_succeeds(catalog, repo_root):
-    force = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    force = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
     assert force.name == "T'au Empire 2024 CP"
     assert force.detachment is not None
     # Pathfinders have markerlight + scouts

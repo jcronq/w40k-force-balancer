@@ -14,8 +14,8 @@ from w40k_force_balancer.load.doctrines import load_doctrine
 
 
 def _load_pair(repo_root, catalog):
-    fa = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
-    fb = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
+    fa = sim.load_force(repo_root / "forces" / "force_custodes_2024cp_v2.yaml", catalog)
+    fb = sim.load_force(repo_root / "forces" / "force_tau_2024cp_v2.yaml", catalog)
     return fa, fb
 
 
