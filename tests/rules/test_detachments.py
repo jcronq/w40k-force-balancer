@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-import w40k_sim_v2 as sim
+import w40k_force_balancer as sim
 from tests.conftest import make_weapon, make_unit, make_force, RiggedRng
 
 
@@ -65,7 +65,7 @@ def test_montka_target_shoots_twice(catalog, board_default):
     f.montka_target = gunner
     e = sim.Force(name="E", units=[victim])
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     gunner.pos = 10.0; victim.pos = 10.0   # dist = 4
     # Two firings: each shoots 1 shot. Rig hits+wounds to succeed both times.
     # (First firing already consumes from the same rigged queue.)

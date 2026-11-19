@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-import w40k_sim_v2 as sim
+import w40k_force_balancer as sim
 from tests.conftest import make_weapon, make_unit, make_force, RiggedRng
 
 
@@ -37,7 +37,7 @@ def test_fire_overwatch_spends_cp_and_fires(catalog, board_default):
     cf = sim.Force(name="Chargers", units=[charger])
     df = sim.Force(name="Defenders", units=[defender], detachment=det, cp=3)
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     charger.pos = 20.0; defender.pos = 0.0
     # 4 shots overwatching, need 6+; rolls 6,6,1,1 => 2 hits
     # Then 2 wound rolls at 2+ (S10 vs T4), rolls 5,5 => both wound
@@ -57,7 +57,7 @@ def test_fire_overwatch_not_in_detachment_noop(catalog, board_default):
     cf = sim.Force(name="Chargers", units=[charger])
     df = sim.Force(name="Defenders", units=[defender], detachment=det, cp=3)
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     charger.pos = 20.0; defender.pos = 0.0
     sim._do_overwatch(charger, defender, df, cf, round_no=1, rng=random.Random(0), verbose=False)
     assert df.cp == 3   # unspent
@@ -75,7 +75,7 @@ def test_rapid_ingress_arrives_round_one(catalog, board_default):
     f = sim.Force(name="F", units=[reserve], detachment=det, cp=3)
     enemy = sim.Force(name="E", units=[make_unit(name="Dummy")])
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     sim.command_phase(f, enemy, round_no=1, rng=random.Random(0))
     assert reserve.in_reserves is False
     assert reserve.pos == pytest.approx(15.0)
@@ -95,7 +95,7 @@ def test_heroic_intervention_engages_nearby_charger(catalog, board_default):
     cf = sim.Force(name="Chargers", units=[charger])
     df = sim.Force(name="Heroes", units=[hero], detachment=det, cp=3)
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     # Put charger at distance=2 from hero.
     charger.pos = 22.0
     hero.pos = 0.0
@@ -136,7 +136,7 @@ def test_command_reroll_on_failed_charge(catalog, board_default):
     f = sim.Force(name="F", units=[attacker], detachment=det, cp=3)
     df = sim.Force(name="D", units=[defender])
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     # Position: 8" apart. Need 8 on 2d6 to charge.
     attacker.pos = 16.0; defender.pos = 0.0
     # First 2d6 rolls 3 (1+2) → fail. Reroll yields 10 (5+5) → success.
@@ -159,7 +159,7 @@ def test_grenade_strat_fires_at_infantry(catalog, board_default):
     f = sim.Force(name="F", units=[thrower], detachment=det, cp=3, faction="TAU_EMPIRE")
     df = sim.Force(name="D", units=[victim])
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     # Position within 8".
     thrower.pos = 17.0; victim.pos = 0.0   # dist = 7
     # Not enough non-grenade shots to care; rig the grenade 6-shot roll

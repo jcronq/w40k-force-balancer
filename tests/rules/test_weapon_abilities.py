@@ -9,7 +9,7 @@ import random
 
 import pytest
 
-import w40k_sim_v2 as sim
+import w40k_force_balancer as sim
 from tests.conftest import make_weapon, make_unit, make_force, RiggedRng
 
 
@@ -214,7 +214,7 @@ def test_pistol_fires_in_melee(board_default):
     enemy_force = make_force("EF", enemy)
     # Minimal shooting_phase invocation: deploy them so pair_distance is 0.
     board = sim.Board()
-    sim._BOARD = board
+    sim.set_board(board)
     attacker.pos = board.deployment_gap_in
     enemy.pos = 0.0
 

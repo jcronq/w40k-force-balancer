@@ -1,7 +1,8 @@
-"""Catalog load-time validation tests.
+"""Force + catalog load-time validation tests.
 
 Unknown abilities, unknown keywords, unknown detachments, and malformed
 force-yaml references must all raise RuntimeError with an actionable message.
+Also smoke-loads the two shipped v2 force yamls.
 """
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ import tempfile
 
 import pytest
 
-import w40k_sim_v2 as sim
+import w40k_force_balancer as sim
 
 
 def _write_yaml(text: str) -> pathlib.Path:
@@ -154,10 +155,9 @@ units:
         os.unlink(p)
 
 
-def test_full_custodes_load_succeeds(catalog):
+def test_full_custodes_load_succeeds(catalog, repo_root):
     """Sanity: the ships-with-sim force yamls all load clean."""
-    base = pathlib.Path(sim.__file__).parent
-    force = sim.load_force(base / "force_custodes_2024cp_v2.yaml", catalog)
+    force = sim.load_force(repo_root / "force_custodes_2024cp_v2.yaml", catalog)
     assert force.name == "Custodes 2024 CP"
     assert force.detachment is not None
     # Blade Champion attaches to Custodian Guard
@@ -166,9 +166,8 @@ def test_full_custodes_load_succeeds(catalog):
     assert guard.attached_character.name == "Blade Champion"
 
 
-def test_full_tau_load_succeeds(catalog):
-    base = pathlib.Path(sim.__file__).parent
-    force = sim.load_force(base / "force_tau_2024cp_v2.yaml", catalog)
+def test_full_tau_load_succeeds(catalog, repo_root):
+    force = sim.load_force(repo_root / "force_tau_2024cp_v2.yaml", catalog)
     assert force.name == "T'au Empire 2024 CP"
     assert force.detachment is not None
     # Pathfinders have markerlight + scouts

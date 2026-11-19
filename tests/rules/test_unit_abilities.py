@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-import w40k_sim_v2 as sim
+import w40k_force_balancer as sim
 from tests.conftest import make_weapon, make_unit, make_force, RiggedRng
 
 
@@ -58,7 +58,7 @@ units:
     assert unit.in_reserves is True
     # After round 1 movement phase, still in reserves (arrival_round=2).
     board = sim.Board()
-    sim._BOARD = board
+    sim.set_board(board)
     sim.setup_initial_positions(force)
     enemy = make_force("Enemy", make_unit(name="Dummy"))
     sim.setup_initial_positions(enemy)
@@ -124,7 +124,7 @@ def test_deadly_demise_deals_mortals_on_death(board_default):
     enemy_force = make_force("EF", victim)
     # Set positions so pair_distance works.
     board = sim.Board()
-    sim._BOARD = board
+    sim.set_board(board)
     dying.pos = 10.0
     victim.pos = 10.0
     # Rig rng to roll 6 => dies spectacularly.
@@ -139,7 +139,7 @@ def test_deadly_demise_whiffs_below_threshold(board_default):
     victim = make_unit(name="Victim", models=1, toughness=4, wounds_per_model=5, save=6)
     enemy_force = make_force("EF", victim)
     board = sim.Board()
-    sim._BOARD = board
+    sim.set_board(board)
     dying.pos = 0.0; victim.pos = 0.0
     sim.apply_deadly_demise(dying, enemy_force, RiggedRng([3]))
     assert victim.total_wounds == 5
@@ -169,7 +169,7 @@ units:
     finally:
         os.unlink(p)
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     sim.setup_initial_positions(force)
     assert force.units[0].pos == 9.0
 
@@ -196,7 +196,7 @@ units:
     finally:
         os.unlink(p)
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     sim.setup_initial_positions(force)
     assert force.units[0].pos == 6.0
 
@@ -216,7 +216,7 @@ def test_for_the_greater_good_overwatch_hits_on_5_plus(board_default, catalog):
     cf = sim.Force(name="Chargers", units=[charger])
     df = sim.Force(name="Defenders", units=[defender], detachment=det, cp=3)
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     rng = RiggedRng([5,  5,  1])  # hit 5 (passes under FGG 5+ overwatch), wound, no save
     sim._do_overwatch(charger, defender, df, cf, round_no=1, rng=rng, verbose=False)
     # Charger took at least 1 damage: starting W=5, now less.
@@ -235,7 +235,7 @@ def test_markerlight_places_tokens(board_default):
     atk_force = sim.Force(name="Atk", faction="TAU_EMPIRE", units=[markers])
     df_force = sim.Force(name="Def", units=[victim])
     board = sim.Board(deployment_gap_in=24)
-    sim._BOARD = board
+    sim.set_board(board)
     markers.pos = 10.0
     victim.pos = 0.0
     # 5 marker rolls: 4,4,4,2,1 => 3 placed (capped at 3)

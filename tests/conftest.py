@@ -1,4 +1,4 @@
-"""Shared test fixtures for w40k_sim_v2 test suite."""
+"""Shared test fixtures for the w40k_force_balancer suite."""
 from __future__ import annotations
 
 import random
@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-SIM_ROOT = Path(__file__).resolve().parent.parent
-if str(SIM_ROOT) not in sys.path:
-    sys.path.insert(0, str(SIM_ROOT))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-import w40k_sim_v2 as sim
+import w40k_force_balancer as sim
 
 
 @pytest.fixture
@@ -22,6 +22,12 @@ def catalog():
 @pytest.fixture
 def rng():
     return random.Random(0)
+
+
+@pytest.fixture
+def repo_root():
+    """Repo root directory — where the force_*.yaml examples live."""
+    return REPO_ROOT
 
 
 def make_weapon(**overrides) -> sim.Weapon:
@@ -71,7 +77,7 @@ def make_force(name: str, *units: sim.Unit) -> sim.Force:
 @pytest.fixture
 def board_default():
     b = sim.Board(width_in=44, height_in=30, deployment_gap_in=24)
-    sim._BOARD = b
+    sim.set_board(b)
     return b
 
 
