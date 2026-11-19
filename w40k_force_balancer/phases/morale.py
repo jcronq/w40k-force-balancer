@@ -20,8 +20,17 @@ def morale_phase(
         if not u.alive or u.in_reserves:
             continue
         # 11e: Battleshock test if unit is Below Half Strength at end of turn.
+        # For 1-model units, "half strength" is wound points, not model count
+        # (finding #4). Previously only triggered when total_wounds<=0, which
+        # is already dead — the test could never fire for a solo character.
         start = u.starting_models or u.models
-        below_half = u.models <= (start // 2) if start > 1 else u.total_wounds <= 0
+        if start > 1:
+            below_half = u.models <= (start // 2)
+        else:
+            # Single-model unit: below-half when current wounds <= half of
+            # starting wounds. Use strict doubling to avoid off-by-one on
+            # odd wound counts (e.g. 5W char: triggers at <=2 remaining).
+            below_half = u._current_model_wounds * 2 <= u.wounds_per_model
         if below_half:
             # Ld test: 2d6 >= Ld to pass. (We add models_lost_this_round as
             # a crude proxy for 10e's modifier though 11e uses flat 2d6 vs Ld.)

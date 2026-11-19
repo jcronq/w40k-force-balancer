@@ -165,6 +165,35 @@ def test_finding3_markerlight_1marker_rerolls_only_ones(board_default):
 
 
 # =========================================================================== #
+# Finding #4 — 1-model unit battleshock can trigger below-half
+# =========================================================================== #
+
+
+def test_finding4_single_model_character_triggers_below_half_battleshock(board_default):
+    """5-wound character reduced to 2W should be below-half (2*2 <= 5),
+    eligible for the battleshock test. Previously this never fired for
+    1-model units unless they were already dead."""
+    char = make_unit(name="Char", models=1, toughness=4, wounds_per_model=5, save=3,
+                     leadership=7)
+    char._current_model_wounds = 2
+    force = make_force("F", char)
+    # Rigged rng: 2d6 rolls 1+1=2, way below Ld 7 → battleshock.
+    rng = RiggedRng([1, 1])
+    sim.morale_phase(force, make_force("Enemy"), round_no=1, rng=rng)
+    assert char.battleshocked_until_round == 1
+
+
+def test_finding4_single_model_at_above_half_does_not_trigger(board_default):
+    char = make_unit(name="Char", models=1, toughness=4, wounds_per_model=5, save=3,
+                     leadership=7)
+    char._current_model_wounds = 3   # above half of 5
+    force = make_force("F", char)
+    rng = RiggedRng([1, 1])
+    sim.morale_phase(force, make_force("Enemy"), round_no=1, rng=rng)
+    assert char.battleshocked_until_round == 0
+
+
+# =========================================================================== #
 # Finding #7 — Hazardous mortals get FNP
 # =========================================================================== #
 
