@@ -206,11 +206,25 @@ class Force:
 
     @property
     def alive(self) -> bool:
-        return any(u.alive for u in self.units if not u.in_reserves)
+        """A force is alive while ANY unit is alive — including units still
+        in deep-strike reserves (finding #2). Previously this excluded
+        reserves, which stranded a deep-striker if every on-board unit
+        died before arrival: `simulate_game` would short-circuit the
+        force as eliminated and never let reserves land."""
+        return any(u.alive for u in self.units)
+
+    def has_board_presence(self) -> bool:
+        """Stricter check — is anything shootable on the table right now?
+        Use this when the phase cares about on-board state (e.g. target
+        enumeration), not when deciding whether the force is eliminated."""
+        return any(u.alive and not u.in_reserves for u in self.units)
 
     @property
     def total_wounds(self) -> int:
-        return sum(u.total_wounds for u in self.units if not u.in_reserves)
+        """Sum of wound points across ALL alive units including reserves
+        (finding #2). Reserves count toward the tiebreak because a force
+        with reserves pending is not eliminated."""
+        return sum(u.total_wounds for u in self.units)
 
     def living_on_board(self) -> list[Unit]:
         return [u for u in self.units if u.alive and not u.in_reserves]
