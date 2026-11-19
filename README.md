@@ -48,6 +48,9 @@ python3 -m w40k_force_balancer force_a.yaml force_b.yaml
     [--doctrine-b ID]       # override B's doctrine
     [--matrix]              # run every doctrine permutation, print the grid
     [--matrix-sims N]       # sims per matrix cell (default 2000)
+    [--log-game FILE.md]    # single-game markdown battle report (see Battle logs)
+    [--log-game-jsonl FILE.jsonl]
+                            # single-game JSONL event stream (see Battle logs)
 ```
 
 Output: A-wins / B-wins / draw percentages for A-goes-first, B-goes-first, and 50/50 blend. First-turn-advantage swing printed when ≥1 percentage point.
@@ -153,6 +156,116 @@ DOCTRINE MATRIX — Custodes 2024 CP vs T'au Empire 2024 CP, 2,000 sims per cell
 ```
 
 Read the matrix as: each row is a Custodes doctrine, each column a T'au doctrine, and the cell is the win rate if both sides lock into those tactics the whole game. Live numbers vary by RNG seed; use `--matrix-sims` + `--seed` to tighten or compare.
+
+## Battle logs
+
+The aggregate N-sim run prints percentages; the matrix prints a grid. Neither tells you what happened *inside* a single game. Two flags emit a per-game log so a simulated game can be compared with — or diffed against — a real tabletop record:
+
+```bash
+# Markdown — human-readable battle report
+python3 -m w40k_force_balancer force_a.yaml force_b.yaml --log-game game.md --seed 0
+
+# JSONL — machine-readable event stream (one JSON object per line)
+python3 -m w40k_force_balancer force_a.yaml force_b.yaml --log-game-jsonl game.jsonl --seed 0
+
+# Both at once — same game, two sinks
+python3 -m w40k_force_balancer force_a.yaml force_b.yaml \
+    --log-game game.md --log-game-jsonl game.jsonl --seed 0
+```
+
+Either flag forces single-game mode (ignores `--sims`) and respects `--seed` — same seed, same game. Both files are overwritten per run. `--verbose` still works on its own; combining it with the log flags fans the shared event stream to all three sinks.
+
+### Markdown format
+
+Reads like a battle report:
+
+```markdown
+# Battle Report — Custodes 2024 CP vs T'au Empire 2024 CP
+
+**Board:** 44"×30", deployment gap 24"
+**Seed:** 0
+**First turn:** Force A
+
+## Deployment
+
+**Custodes 2024 CP:**
+- Blade Champion — 1 model(s), 6W, pos 0.0"
+- Custodian Guard — 5 model(s), 15W, pos 0.0" (char: Blade Champion)
+- *Reserves:*
+  - Allarus Custodians — 3 model(s), 12W
+
+**T'au Empire 2024 CP:**
+- Commander in Enforcer Battlesuit — 1 model(s), 7W, pos 0.0"
+- Fire Warriors Breacher Team — 10 model(s), 10W, pos 0.0"
+- Pathfinders — 10 model(s), 10W, pos 6.0"
+- Devilfish — 1 model(s), 11W, pos 0.0"
+
+## Round 1 — A Turn
+
+### Command Phase
+- CP: 3; strats: MARTIAL_KATAH:Pathfinders, RAPID_INGRESS
+
+### Movement Phase
+- Blade Champion moves +10.0" [default] -> pos 10.0" (advance)
+- Custodian Guard moves +10.0" [default] -> pos 10.0" (advance)
+
+### Shooting Phase
+- Allarus Custodians fires *Balistus grenade launcher (ranged)* at Commander in Enforcer Battlesuit: 3 attacks -> 2 hits -> 0 wounds -> 0 unsaved -> 0 damage
+
+## Round 1 — B Turn
+...
+
+## Final Result
+
+**Winner:** Force A — B wiped
+**Remaining wounds:** A=18, B=0
+**First player:** A
+```
+
+### JSONL event schema
+
+One JSON object per line. `type` discriminates the event. Full event-type list:
+
+| type | fields |
+|------|--------|
+| `deployment` | `force` `force_name` `units[]` `reserves[]` `board_width` `board_height` `deployment_gap` `first_player` `seed` |
+| `command` | `round` `turn` `cp` `strats_declared[]` |
+| `movement` | `round` `turn` `actor` `src_pos` `dst_pos` `mode` `advanced` `fallback` |
+| `deep_strike_arrival` | `round` `turn` `actor` `dst_pos` |
+| `activation` | `round` `turn` `phase` `actor` `target` `weapon` `attacks` `hits` `wounds` `unsaved` `damage` `models_killed` `attached_character_damage` |
+| `charge_attempt` | `round` `turn` `actor` `target` `distance` `roll` `succeeded` |
+| `charge_connect` | `round` `turn` `actor` `target` |
+| `heroic_intervention` | `round` `turn` `actor` `target` |
+| `morale_test` | `round` `turn` `actor` `roll` `leadership` `passed` |
+| `battleshock_triggered` | `round` `turn` `actor` |
+| `strat_used` | `round` `turn` `phase` `strat_id` `actor` |
+| `unit_destroyed` | `round` `turn` `phase` `actor` |
+| `round_end` | `round` |
+| `game_end` | `round` `winner` `reason` `remaining_wounds_a` `remaining_wounds_b` `first_player` |
+
+Sample line (shooting activation):
+
+```json
+{"round": 1, "turn": "A", "phase": "shooting", "type": "activation",
+ "actor": "Custodian Guard", "target": "Breacher Team",
+ "weapon": "Guardian spear (ranged)", "attacks": 10, "hits": 8,
+ "wounds": 6, "unsaved": 4, "damage": 8, "models_killed": 4,
+ "attached_character_damage": 0}
+```
+
+### Replay-against-real-game calibration workflow
+
+The sim is a model. Models drift. The battle-log outputs exist so a *simulated* game can be laid alongside a *played* game and the places where they diverge become the calibration punch-list.
+
+Rough loop:
+
+1. Play a real game against a specific opponent list. Record the force yamls on both sides (keep them exactly what hit the table).
+2. Re-run the sim on those yamls with `--log-game game.md --seed <some seed> --rounds <rounds played>`. Try several seeds; pick the one whose first-round shape (first-player movement choices, first charge attempt, first unit wiped) best matches what happened at the table.
+3. Diff the markdown report against your notes from the real game. Where the sim consistently over- or under-predicts — e.g. "sim's Breacher Team always eats a Guardian spear activation in round 1, but at the table they stayed out of range because of terrain" — you've found a model fidelity gap.
+4. Fix: either a yaml mismatch (wrong profile, missing ability), a doctrine miscalibration (the sim's rush-doctrine closes faster than a human does), or an engine simplification (1D distance collapses terrain). The `type=activation` events let you zero in on which weapon / target / phase is off: `jq 'select(.type=="activation" and .actor=="Breacher Team")' game.jsonl`.
+5. Re-sim and iterate.
+
+The JSONL is the authoritative diff target — it's stable across runs with the same seed, and `jq`-friendly. The markdown is for human eyeballing.
 
 ## Code layout
 
@@ -395,6 +508,10 @@ tests/
     test_morale.py              # below-half battleshock
   engine/
     test_game.py                # full-game smoke + 500-sim pinned blend
+    test_logger.py              # BattleLogger protocol + renderers
+    test_game_logging.py        # end-to-end logger-captured game
+    test_matrix.py              # doctrine matrix sweep
+  test_cli.py                   # --log-game / --log-game-jsonl CLI paths
 ```
 
 Run from the repo root:
