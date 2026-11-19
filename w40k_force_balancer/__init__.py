@@ -112,7 +112,13 @@ from .phases.shooting import _shoot_weapon_set, shooting_phase
 # --- Engine + CLI ---------------------------------------------------------
 from .cli import main
 from .engine.game import setup_initial_positions, simulate_game
-from .engine.runner import pct, print_report, simulate_many
+from .engine.runner import (
+    pct,
+    print_matrix_report,
+    print_report,
+    simulate_many,
+    simulate_matrix,
+)
 
 
 # Public API aliases (spec: load_catalogs / run_simulation).
@@ -137,6 +143,7 @@ __all__ = [
     "load_doctrine",
     "load_all_doctrines",
     "run_simulation",
+    "simulate_matrix",
     "main",
     # Doctrine
     "Doctrine",
@@ -185,6 +192,7 @@ __all__ = [
     "simulate_game",
     "simulate_many",
     "print_report",
+    "print_matrix_report",
     # Constants
     "ALL_PHASES",
     "PHASE_COMMAND",
