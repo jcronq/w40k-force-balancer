@@ -32,10 +32,21 @@ def charge_phase(
         if unit.arrived_round == round_no and unit.has_ability("DEEP_STRIKE"):
             # Deep-struck this round: can't charge.
             continue
+        # Doctrine gate: `never` skips the charge entirely.
+        policy = unit.doctrine.charge.policy
+        if policy == "never":
+            continue
         # Pick target within 12" declaration range.
         target = _board.closest_enemy_within(unit, enemy, 12)
         if target is None:
             continue
+        if policy == "conditional":
+            # Only charge when we out-throw target melee count (symmetric with
+            # the fall-back heuristic).
+            my_attacks = sum(w.attacks * unit.models for w in unit.weapons if w.melee)
+            their_attacks = sum(w.attacks * target.models for w in target.weapons if w.melee)
+            if their_attacks >= my_attacks:
+                continue
         dist = _board.pair_distance(unit, target)
         # Overwatch: target can fire. Uses Command strat or free-action? In 11e
         # it's a 1 CP strat. We model as the defender's FIRE_OVERWATCH strat

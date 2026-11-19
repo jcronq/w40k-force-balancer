@@ -55,6 +55,15 @@ from .core.board import (
     set_board,
 )
 from .core.dice import clamp, roll_2d6, roll_d6, to_wound_threshold
+from .core.doctrine import (
+    DEFAULT_DOCTRINE,
+    Doctrine,
+    DoctrineCharge,
+    DoctrineFallBack,
+    DoctrineMovement,
+    DoctrineReserve,
+    DoctrineShooting,
+)
 from .core.model import (
     ALL_PHASES,
     PHASE_CHARGE,
@@ -73,6 +82,11 @@ from .core.model import (
 
 # --- Loaders --------------------------------------------------------------
 from .load.catalog import CATALOG_DIR_DEFAULT, load_catalog
+from .load.doctrines import (
+    DOCTRINE_DIR_DEFAULT,
+    load_all_doctrines,
+    load_doctrine,
+)
 from .load.force import load_force
 
 # --- Rule implementations ------------------------------------------------
@@ -120,8 +134,19 @@ __all__ = [
     # Public API
     "load_catalogs",
     "load_force",
+    "load_doctrine",
+    "load_all_doctrines",
     "run_simulation",
     "main",
+    # Doctrine
+    "Doctrine",
+    "DoctrineCharge",
+    "DoctrineFallBack",
+    "DoctrineMovement",
+    "DoctrineReserve",
+    "DoctrineShooting",
+    "DEFAULT_DOCTRINE",
+    "DOCTRINE_DIR_DEFAULT",
     # Core
     "Board",
     "Catalog",

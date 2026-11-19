@@ -1,0 +1,18 @@
+id: kite
+description: >
+  Maintain each weapon's half-range window (back off from engagement if
+  needed), fire at the closest threat, never charge, always Fall Back when
+  engaged. Accepts the HEAVY penalty for mobility. Mobile T'au option.
+movement:
+  mode: advance_to_optimal_range
+  advance_roll: false
+shooting:
+  target_priority: closest_threat
+charge:
+  policy: never
+fall_back:
+  trigger: when_engaged
+stratagem_bias:
+  - FIRE_OVERWATCH
+  - COMMAND_REROLL
+  - INSANE_BRAVERY

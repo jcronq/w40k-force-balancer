@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
+from .doctrine import DEFAULT_DOCTRINE, Doctrine
+
 
 # Phase constants
 PHASE_COMMAND = "COMMAND"
@@ -137,6 +139,12 @@ class Unit:
     attached_character: "Unit | None" = None   # Reference from squad -> character
     attached_to: "Unit | None" = None          # Reference from character -> squad
 
+    # Effective doctrine (force-level + any per-unit override, resolved at
+    # load time). Phases consult this instead of their old hard-coded
+    # heuristics. Defaults to DEFAULT_DOCTRINE so a unit without any force
+    # doctrine still gets the old engine behavior.
+    doctrine: Doctrine = field(default_factory=lambda: DEFAULT_DOCTRINE)
+
     def copy(self) -> "Unit":
         clone = replace(
             self,
@@ -175,6 +183,7 @@ class Force:
     detachment: Detachment | None = None
     cp: int = 4
     units: list[Unit] = field(default_factory=list)
+    doctrine: Doctrine = field(default_factory=lambda: DEFAULT_DOCTRINE)
 
     # Runtime state
     martial_katah_target: Unit | None = None          # Custodes: this round's wound-bonus target
@@ -194,6 +203,7 @@ class Force:
             detachment=self.detachment,
             cp=self.cp,
             units=[u.copy() for u in self.units],
+            doctrine=self.doctrine,
         )
         # Restore attachments by name
         by_name = {u.name: u for u in f.units}

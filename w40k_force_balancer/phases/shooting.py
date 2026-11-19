@@ -13,6 +13,28 @@ from ..rules.unit_abilities import apply_deadly_demise
 from ..rules.weapon_abilities import resolve_shots
 
 
+def _threat_value(u: Unit) -> int:
+    """Unit threat score: sum(A * D) across weapons * current models.
+    Higher is scarier. Used by `highest_threat_value` target priority.
+    """
+    weapon_power = sum(max(1, w.attacks) * max(1, w.damage) for w in u.weapons)
+    return weapon_power * max(1, u.models)
+
+
+def _pick_target(candidates: list[Unit], shooter: Unit, priority: str) -> Unit:
+    """Apply the shooter's doctrine target priority to a candidate list."""
+    if priority == "closest_threat":
+        return min(candidates, key=lambda e: _board.pair_distance(shooter, e))
+    if priority == "highest_threat_value":
+        # Max threat; tie-break to closest-first so engine remains deterministic.
+        return max(
+            candidates,
+            key=lambda e: (_threat_value(e), -_board.pair_distance(shooter, e)),
+        )
+    # lowest_wounds (default engine behaviour, closest-to-dying)
+    return min(candidates, key=lambda e: e.total_wounds)
+
+
 def shooting_phase(
     current: Force,
     enemy: Force,
@@ -118,7 +140,8 @@ def _shoot_weapon_set(
             if weapons:
                 weapons[0] = replace(weapons[0], attacks=max(0, weapons[0].attacks - 1))
 
-    # Each weapon picks its own target, closest-to-dying within range.
+    # Each weapon picks its own target per the firing unit's doctrine.
+    priority = unit.doctrine.shooting.target_priority
     for weapon in weapons:
         candidates = [
             e for e in enemy.living_on_board()
@@ -126,7 +149,7 @@ def _shoot_weapon_set(
         ]
         if not candidates:
             continue
-        target = min(candidates, key=lambda e: e.total_wounds)
+        target = _pick_target(candidates, unit, priority)
         dist = _board.pair_distance(unit, target)
         # Markerlight re-roll gate (fix #3): no more BS patching. Instead
         # pass a `marker_rerolls` directive into resolve_shots so the hit
