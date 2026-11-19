@@ -55,6 +55,15 @@ from .core.board import (
     set_board,
 )
 from .core.dice import clamp, roll_2d6, roll_d6, to_wound_threshold
+from .core.doctrine import (
+    DEFAULT_DOCTRINE,
+    Doctrine,
+    DoctrineCharge,
+    DoctrineFallBack,
+    DoctrineMovement,
+    DoctrineReserve,
+    DoctrineShooting,
+)
 from .core.model import (
     ALL_PHASES,
     PHASE_CHARGE,
@@ -73,6 +82,11 @@ from .core.model import (
 
 # --- Loaders --------------------------------------------------------------
 from .load.catalog import CATALOG_DIR_DEFAULT, load_catalog
+from .load.doctrines import (
+    DOCTRINE_DIR_DEFAULT,
+    load_all_doctrines,
+    load_doctrine,
+)
 from .load.force import load_force
 
 # --- Rule implementations ------------------------------------------------
@@ -98,7 +112,13 @@ from .phases.shooting import _shoot_weapon_set, shooting_phase
 # --- Engine + CLI ---------------------------------------------------------
 from .cli import main
 from .engine.game import setup_initial_positions, simulate_game
-from .engine.runner import pct, print_report, simulate_many
+from .engine.runner import (
+    pct,
+    print_matrix_report,
+    print_report,
+    simulate_many,
+    simulate_matrix,
+)
 
 
 # Public API aliases (spec: load_catalogs / run_simulation).
@@ -120,8 +140,20 @@ __all__ = [
     # Public API
     "load_catalogs",
     "load_force",
+    "load_doctrine",
+    "load_all_doctrines",
     "run_simulation",
+    "simulate_matrix",
     "main",
+    # Doctrine
+    "Doctrine",
+    "DoctrineCharge",
+    "DoctrineFallBack",
+    "DoctrineMovement",
+    "DoctrineReserve",
+    "DoctrineShooting",
+    "DEFAULT_DOCTRINE",
+    "DOCTRINE_DIR_DEFAULT",
     # Core
     "Board",
     "Catalog",
@@ -160,6 +192,7 @@ __all__ = [
     "simulate_game",
     "simulate_many",
     "print_report",
+    "print_matrix_report",
     # Constants
     "ALL_PHASES",
     "PHASE_COMMAND",

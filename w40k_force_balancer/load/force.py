@@ -10,7 +10,9 @@ from pathlib import Path
 
 import yaml
 
+from ..core.doctrine import DEFAULT_DOCTRINE, Doctrine
 from ..core.model import Catalog, Force, Unit, Weapon
+from .doctrines import load_doctrine
 
 
 def _parse_weapon(w: dict, cat: Catalog) -> Weapon:
@@ -43,7 +45,30 @@ def _parse_weapon(w: dict, cat: Catalog) -> Weapon:
     )
 
 
-def _parse_unit(u: dict, cat: Catalog) -> Unit:
+def _parse_doctrine_spec(
+    raw: dict | str | None,
+    base: Doctrine,
+) -> Doctrine:
+    """Resolve a doctrine spec against a base.
+
+    `raw` is one of:
+      * None            -> return `base` unchanged.
+      * str             -> load the named catalog doctrine.
+      * dict            -> partial override merged onto `base`.
+    """
+    if raw is None:
+        return base
+    if isinstance(raw, str):
+        return load_doctrine(raw)
+    if isinstance(raw, dict):
+        return base.merged_with(raw)
+    raise RuntimeError(
+        f"doctrine spec must be a string id or a dict of overrides, "
+        f"got {type(raw).__name__}"
+    )
+
+
+def _parse_unit(u: dict, cat: Catalog, force_doctrine: Doctrine) -> Unit:
     # Validate keywords
     for kw in u.get("keywords", []) or []:
         cat.require_keyword(kw)
@@ -97,6 +122,9 @@ def _parse_unit(u: dict, cat: Catalog) -> Unit:
     )
     unit.starting_models = unit.models
     unit._current_model_wounds = unit.wounds_per_model
+    # Resolve effective doctrine: start from force doctrine, apply unit
+    # override (partial dict or named catalog id) on top.
+    unit.doctrine = _parse_doctrine_spec(u.get("doctrine"), force_doctrine)
     return unit
 
 
@@ -128,7 +156,8 @@ def load_force(path: Path, catalog: Catalog) -> Force:
                 f"Detachment '{detachment.name}' is faction '{detachment.faction}' "
                 f"but force '{data['name']}' is '{faction}'."
             )
-    units = [_parse_unit(u, catalog) for u in data["units"]]
+    force_doctrine = _parse_doctrine_spec(data.get("doctrine"), DEFAULT_DOCTRINE)
+    units = [_parse_unit(u, catalog, force_doctrine) for u in data["units"]]
 
     # Wire character attachments
     by_name = {u.name: u for u in units}
@@ -154,9 +183,17 @@ def load_force(path: Path, catalog: Catalog) -> Force:
         detachment=detachment,
         cp=int(data.get("cp", 4)),
         units=units,
+        doctrine=force_doctrine,
     )
-    # Deep-strike reserves setup
+    # Deep-strike reserves setup. If the unit's effective doctrine has a
+    # reserve.delay_until_round, bump the DEEP_STRIKE arrival_round up to
+    # that value so the engine's movement phase keeps it in reserves longer.
     for u in force.units:
         if u.has_ability("DEEP_STRIKE"):
             u.in_reserves = True
+            delay = u.doctrine.reserve.delay_until_round
+            if delay > 0:
+                ds = u.abilities["DEEP_STRIKE"]
+                current_arrival = int(ds.get("arrival_round", 2))
+                ds["arrival_round"] = max(current_arrival, delay)
     return force

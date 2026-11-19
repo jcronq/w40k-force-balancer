@@ -1,0 +1,18 @@
+id: rush
+description: >
+  Advance toward the closest enemy every round, charge whenever 2d6 can
+  reach, never retreat. Picks the closest enemy as the shooting target.
+  Natural Custodes doctrine.
+movement:
+  mode: advance_toward
+  advance_roll: true
+shooting:
+  target_priority: closest_threat
+charge:
+  policy: always_possible
+fall_back:
+  trigger: never
+stratagem_bias:
+  - HEROIC_INTERVENTION
+  - COMMAND_REROLL
+  - RAPID_INGRESS

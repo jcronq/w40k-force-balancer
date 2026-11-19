@@ -1,0 +1,18 @@
+id: hold
+description: >
+  Stand still, fire at the closest threat, never charge, never Fall Back.
+  Behavioural stand-in for "fight from cover" — simpler than gunline
+  (no highest-threat targeting, no HEAVY seeking bonus beyond what the
+  stationary move naturally earns).
+movement:
+  mode: stationary
+  advance_roll: false
+shooting:
+  target_priority: closest_threat
+charge:
+  policy: never
+fall_back:
+  trigger: never
+stratagem_bias:
+  - FIRE_OVERWATCH
+  - INSANE_BRAVERY

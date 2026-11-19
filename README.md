@@ -44,9 +44,115 @@ python3 -m w40k_force_balancer force_a.yaml force_b.yaml
     [--deployment-gap G]    # default 24 in (Combat Patrol)
     [--catalog-dir PATH]    # default ./catalog
     [--verbose]             # single-game decision trace
+    [--doctrine-a ID]       # override A's doctrine (rush/gunline/kite/hold/reserve)
+    [--doctrine-b ID]       # override B's doctrine
+    [--matrix]              # run every doctrine permutation, print the grid
+    [--matrix-sims N]       # sims per matrix cell (default 2000)
 ```
 
 Output: A-wins / B-wins / draw percentages for A-goes-first, B-goes-first, and 50/50 blend. First-turn-advantage swing printed when ≥1 percentage point.
+
+## Doctrines
+
+A **doctrine** is a per-phase tactical policy — how the unit moves, who it shoots, whether it charges, when it Falls Back. Instead of hard-coding one tactical AI in the engine, each unit consults its effective doctrine every phase. That lets the simulator answer questions like *"what happens if T'au just hold their ground vs. what if they kite vs. what if they charge?"* by swapping doctrines, not code.
+
+Each doctrine lives as one yaml in `catalog/doctrines/`. Starter set shipped:
+
+| Doctrine | Movement | Shooting | Charge | Fall Back | Flavour |
+|---|---|---|---|---|---|
+| `rush` | `advance_toward` (+d6 when far) | closest threat | always | never | Custodes default |
+| `gunline` | `stationary` (HEAVY +1) | highest threat value | never | never | T'au static |
+| `kite` | `advance_to_optimal_range` | closest threat | never | when engaged | Mobile T'au |
+| `hold` | `stationary` | closest threat | never | never | Fight-from-cover stand-in |
+| `reserve` | advance_toward + deep-strike delay | closest threat | always | never | Ambush |
+
+Schema per doctrine yaml:
+
+```yaml
+id: rush
+description: "Advance every round, charge when possible, never retreat."
+movement:
+  mode: advance_toward            # advance_toward | advance_away | stationary | advance_to_optimal_range | default
+  advance_roll: true              # if true, +d6 Advance (only gates in when out of 12" charge range)
+shooting:
+  target_priority: closest_threat # closest_threat | highest_threat_value | lowest_wounds
+charge:
+  policy: always_possible         # always_possible | never | conditional
+fall_back:
+  trigger: never                  # never | when_engaged | only_if_losing
+reserve:
+  delay_until_round: 0            # hold DEEP_STRIKE units in reserves until this round
+  sub_doctrine: null              # id applied to non-reserve units
+stratagem_bias:
+  - HEROIC_INTERVENTION
+  - COMMAND_REROLL
+```
+
+### Overriding at force or unit level
+
+Force yaml: add `doctrine: <id>` at the top level.
+
+```yaml
+name: "T'au Empire 2024 CP"
+faction: TAU_EMPIRE
+detachment: montka
+doctrine: gunline            # whole force plays static
+units: ...
+```
+
+Unit yaml: add `doctrine:` to a single unit. A string replaces the entire doctrine; a dict is a partial override merged onto the force doctrine.
+
+```yaml
+units:
+  - name: "Pathfinders"
+    doctrine: kite           # named override — full replace
+    ...
+  - name: "Breacher Team"
+    doctrine:                # partial override — still inherits force gunline shoot/charge/fall-back
+      movement:
+        mode: advance_toward
+```
+
+Omit `doctrine:` entirely and the engine falls back to the `default` doctrine (the pre-doctrine hard-coded tactical AI — advance when far, closest-to-dying target, charge when in range, Fall Back only when losing the melee math). Backward compat preserved for every force yaml that pre-dates this feature.
+
+## Matrix mode
+
+Run every `(doctrine_a, doctrine_b)` permutation against each other:
+
+```bash
+python3 -m w40k_force_balancer force_custodes_2024cp_v2.yaml force_tau_2024cp_v2.yaml --matrix
+```
+
+Each cell prints `A-wins% / B-wins% / draws%` on the 50/50 first-turn blend. The summary at the end calls out:
+
+- Total cells each force wins.
+- Each side's best doctrine (highest average win rate across the opposing doctrines).
+- For each opposing doctrine, the matchup that lands best for that side.
+
+Example (2000 sims/cell):
+
+```
+DOCTRINE MATRIX — Custodes 2024 CP vs T'au Empire 2024 CP, 2,000 sims per cell
+  Board: 44"x30" (gap 24")
+  Cells: A-wins / B-wins / draws (50/50 blend, %)
+
+  cols: T'au Empire 2024 CP doctrine
+  rows: Custodes 2024 CP doctrine
+
+                   rush            gunline         kite            hold            reserve
+  --------------------------------------------------------------------------------------------
+  rows: rush       98.4/ 1.6/0.0   29.6/67.9/2.5   32.9/64.8/2.3   24.8/72.3/2.9   99.0/ 1.0/0.0
+  rows: gunline    99.8/ 0.2/0.0   35.6/57.6/6.8    7.9/88.0/4.1   47.0/41.3/11.7  99.9/ 0.1/0.0
+  rows: kite       79.7/19.6/0.7   30.2/63.7/6.1   65.8/27.1/7.1   39.0/52.4/8.6   79.2/19.9/0.9
+  rows: hold       97.9/ 2.0/0.1    3.2/95.8/1.0   25.9/67.6/6.5    4.4/94.1/1.5   97.5/ 1.9/0.6
+  rows: reserve    98.8/ 1.1/0.1   30.6/67.1/2.3   33.5/63.8/2.7   25.1/72.2/2.7   99.1/ 0.9/0.0
+
+  Custodes 2024 CP wins 12/25 matchups; T'au Empire 2024 CP wins 13/25.
+  Custodes 2024 CP's best doctrine is kite (58.3% avg win rate).
+  T'au Empire 2024 CP's best doctrine is gunline (69.0% avg win rate).
+```
+
+Read the matrix as: each row is a Custodes doctrine, each column a T'au doctrine, and the cell is the win rate if both sides lock into those tactics the whole game. Live numbers vary by RNG seed; use `--matrix-sims` + `--seed` to tighten or compare.
 
 ## Code layout
 
@@ -61,8 +167,10 @@ w40k_force_balancer/
     dice.py                  # d6, 2d6, to-wound chart
     model.py                 # Weapon / Unit / Force / Catalog dataclasses + phase constants
     board.py                 # Board + 1D-distance model + module `_BOARD`
+    doctrine.py              # Doctrine + per-phase policy dataclasses + DEFAULT_DOCTRINE
   load/
     catalog.py               # abilities.yaml + keywords.yaml + detachments/*.yaml loader
+    doctrines.py             # doctrines/*.yaml loader
     force.py                 # force_*.yaml loader + catalog validation
   rules/
     damage.py                # squad allocation, bodyguard spillover, self-mortals
@@ -79,14 +187,15 @@ w40k_force_balancer/
     morale.py                # below-half battleshock + Insane Bravery
   engine/
     game.py                  # setup_initial_positions + simulate_game (one match)
-    runner.py                # simulate_many + print_report
+    runner.py                # simulate_many + print_report + simulate_matrix
 
 tests/                       # mirrored structure
   core/{test_dice, test_model, test_board}.py
-  load/test_force.py
+  load/{test_force, test_doctrines, test_force_doctrines}.py
   rules/{test_weapon_abilities, test_unit_abilities, test_stratagems, test_detachments}.py
   phases/{test_movement, test_shooting, test_charge, test_fight, test_morale}.py
-  engine/test_game.py        # full-game + N-sim integration tests
+  phases/{test_movement_doctrines, test_shooting_doctrines, test_charge_doctrines}.py
+  engine/{test_game, test_matrix}.py
 ```
 
 Public API (`import w40k_force_balancer as sim`): `load_catalogs` / `load_force` / `run_simulation` / `main`, plus every dataclass + phase function + rule helper for direct use.
@@ -102,6 +211,12 @@ catalog/
   detachments/
     shield_host.yaml    # Custodes — Shield Host of the Emperor
     montka.yaml         # T'au — Mont'ka
+  doctrines/
+    rush.yaml           # advance + charge
+    gunline.yaml        # stationary + highest-threat targeting
+    kite.yaml           # optimal-range + Fall Back on engage
+    hold.yaml           # stationary + closest-threat
+    reserve.yaml        # delay deep-strike to r3
 ```
 
 Unknown ability, keyword, detachment, or faction names fail loud at load time with a `RuntimeError` naming the missing ref. Add to the catalog before referencing in a force YAML.
