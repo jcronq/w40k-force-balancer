@@ -26,7 +26,7 @@ def rng():
 
 @pytest.fixture
 def repo_root():
-    """Repo root directory — where the force_*.yaml examples live."""
+    """Repo root directory — force YAML examples live under `forces/`."""
     return REPO_ROOT
 
 

@@ -163,7 +163,11 @@ def resolve_shots(
         hits -= crit_hits   # those hits bypass to-wound
 
     if hits <= 0 and lethal_autowounds <= 0:
-        return ShotResult(self_mortals=hazardous_mortals)
+        return ShotResult(
+            self_mortals=hazardous_mortals,
+            total_attacks=total_shots,
+            hit_count=hits,
+        )
 
     # --- Wound step -------------------------------------------------------
     wound_th = to_wound_threshold(weapon.strength, target.toughness)
@@ -209,7 +213,12 @@ def resolve_shots(
     wounds += lethal_autowounds
 
     if wounds <= 0:
-        return ShotResult(self_mortals=hazardous_mortals)
+        return ShotResult(
+            self_mortals=hazardous_mortals,
+            total_attacks=total_shots,
+            hit_count=hits + lethal_autowounds,
+            wound_count=0,
+        )
 
     # --- Devastating Wounds split (bypass save + FNP) ---------------------
     devastating_wounds = crit_wounds if devastating else 0
@@ -251,7 +260,13 @@ def resolve_shots(
         "PRECISION" in weapon.abilities and target.attached_character is not None
     )
 
-    result = ShotResult(self_mortals=hazardous_mortals)
+    result = ShotResult(
+        self_mortals=hazardous_mortals,
+        total_attacks=total_shots,
+        hit_count=hits + lethal_autowounds,
+        wound_count=wounds,
+        unsaved_count=unsaved + devastating_wounds,
+    )
 
     for _ in range(unsaved):
         dmg = damage_per

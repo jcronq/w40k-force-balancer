@@ -1,0 +1,18 @@
+id: gunline
+description: >
+  Stand still every round (gains the HEAVY +1 to hit), fire at the highest-
+  threat-value enemy, never charge, never Fall Back. Prefers defensive
+  stratagems. Natural T'au static gunline.
+movement:
+  mode: stationary
+  advance_roll: false
+shooting:
+  target_priority: highest_threat_value
+charge:
+  policy: never
+fall_back:
+  trigger: never
+stratagem_bias:
+  - FIRE_OVERWATCH
+  - INSANE_BRAVERY
+  - COMMAND_REROLL

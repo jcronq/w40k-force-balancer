@@ -1,0 +1,21 @@
+id: reserve
+description: >
+  Any unit with DEEP_STRIKE keyword stays in reserves until round 3 (or
+  the ability's own arrival_round, whichever is later). Non-reserve units
+  behave per the sub-doctrine (default: rush). Tests ambush-style play.
+movement:
+  mode: advance_toward
+  advance_roll: true
+shooting:
+  target_priority: closest_threat
+charge:
+  policy: always_possible
+fall_back:
+  trigger: never
+reserve:
+  delay_until_round: 3
+  sub_doctrine: rush
+stratagem_bias:
+  - RAPID_INGRESS
+  - HEROIC_INTERVENTION
+  - COMMAND_REROLL
