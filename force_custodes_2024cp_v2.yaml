@@ -54,14 +54,13 @@ units:
       - DEEP_STRIKE
     weapons:
       - name: "Castellan axe (melee)"
-        A: 4
+        # Tune (combined): A 4->3, PRECISION removed (CHARACTER-only in 10e).
+        A: 3
         WS: 2
         S: 7
         AP: 2
         D: 2
         melee: true
-        abilities:
-          - PRECISION
       - name: "Balistus grenade launcher"
         A: 1
         BS: 2
