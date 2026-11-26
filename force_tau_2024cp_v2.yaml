@@ -58,12 +58,20 @@ units:
       - FOR_THE_GREATER_GOOD
     weapons:
       - name: "Pulse blaster (close)"
+        # Tune: LETHAL_HITS added, close-range AP tightened 2 -> 3.
+        # Represents FTGG-coordinated point-blank volleys focusing weak
+        # points in heavy armour; justified because Breachers'
+        # "For the Greater Good" narrative is literally "stack fire into
+        # the hardest target". Keeps weapon profile close to the spirit
+        # of the real pulse blaster close-range profile.
         A: 2
         BS: 4
         S: 6
-        AP: 2
+        AP: 3
         D: 1
         range: 10
+        abilities:
+          - LETHAL_HITS
 
   - name: "Pathfinders"
     models: 10
@@ -78,6 +86,11 @@ units:
       - FOR_THE_GREATER_GOOD
       - {id: MARKERLIGHT, n: 1}
       - {id: SCOUTS, n: 6}
+      # Tune: STEALTH added. Pathfinders in 10e/11e carry light scouting
+      # kit and drone cover saves; -1 to hit against them is already in
+      # the index for Mont'ka Kauyon lists, and softens incoming melee
+      # clean-up fire enough that the Markerlight chain survives longer.
+      - STEALTH
     weapons:
       - name: "Pulse carbine"
         A: 2
