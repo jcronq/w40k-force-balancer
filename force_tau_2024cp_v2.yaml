@@ -111,3 +111,37 @@ units:
         range: 36
         abilities:
           - {id: SUSTAINED_HITS, n: 1}
+
+  # Tune: Broadside Battlesuit added — Tau's anti-elite answer.
+  - name: "Broadside Battlesuit"
+    models: 1
+    M: 5
+    T: 6
+    W: 8
+    Sv: 2
+    InvSv: 5
+    Ld: 7
+    OC: 2
+    keywords: [BATTLESUIT, VEHICLE, TAU_EMPIRE]
+    abilities:
+      - FOR_THE_GREATER_GOOD
+    weapons:
+      - name: "Twin heavy rail rifle"
+        A: 2
+        BS: 4
+        S: 9
+        AP: 4
+        D: 3
+        range: 60
+        abilities:
+          - TWIN_LINKED
+          - HEAVY
+      - name: "Twin smart missile system"
+        A: 4
+        BS: 4
+        S: 5
+        AP: 0
+        D: 1
+        range: 36
+        abilities:
+          - TWIN_LINKED
