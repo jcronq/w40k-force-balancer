@@ -65,6 +65,26 @@ def _optimal_range(unit: Unit) -> float:
     return max(half_ranges)
 
 
+def _longest_ranged(unit: Unit) -> float:
+    """Longest ranged-weapon range on the unit, 0.0 if melee-only."""
+    ranges = [w.range_in for w in unit.weapons if not w.melee and w.range_in > 0]
+    if not ranges:
+        return 0.0
+    return float(max(ranges))
+
+
+def _has_credible_melee(unit: Unit) -> bool:
+    """Does the unit have a real melee profile (S>=3, A>=2 per attacker)?
+
+    The audit worker's fall-back rule treats "purely ranged" as a unit
+    whose only melee weapons (if any) are nominal — a 1-attack base-contact
+    pistol doesn't count. We use S>=3 AND A>=2 as the minimum bar.
+    """
+    return any(
+        w.melee and w.strength >= 3 and w.attacks >= 2 for w in unit.weapons
+    )
+
+
 def _apply_movement(
     unit: Unit,
     enemy_target: Unit,
@@ -109,15 +129,34 @@ def _apply_movement(
         return
 
     if mode == "advance_to_optimal_range":
-        optimal = _optimal_range(unit)
-        if optimal <= 0:
+        longest = _longest_ranged(unit)
+        if longest <= 0:
             # No ranged weapons — fall through to default aggressive behavior
             # so a melee-only "kite" unit still closes rather than sitting still.
             mode = "default"
         else:
-            # If gap > optimal, advance (but don't close inside optimal).
-            # If gap < optimal, back off to reach optimal. If gap == optimal, stay.
-            desired_move = gap - optimal   # positive = forward, negative = backward
+            half_range = longest / 2.0
+            has_melee = _has_credible_melee(unit)
+            # Audit worker's kite classifier (fix #2):
+            #  1. If best-weapon range > 12" AND target is in range AND gap <
+            #     half-range, HOLD POSITION (stays stationary -> HEAVY +1
+            #     eligible, no Advance penalty).
+            #  2. Else, if gap < 6" and the unit has no credible melee
+            #     profile, FALL BACK 6" toward own board edge.
+            #  3. Otherwise fall through to the generic "move toward optimal
+            #     half-range" behavior (same math as before: step min(M,
+            #     |gap - half-range|) toward the half-range window).
+            if longest > 12.0 and gap <= longest and gap < half_range:
+                # Stationary — don't flip any of the moved/advanced flags.
+                return
+            if gap < 6.0 and not has_melee:
+                step = min(6.0, unit.pos)
+                if step > 0:
+                    unit.pos -= step
+                    unit.moved_this_turn = True
+                    unit.remained_stationary = False
+                return
+            desired_move = gap - half_range   # positive = forward, negative = backward
             if abs(desired_move) < 1.0:
                 return
             step = min(float(unit.movement), abs(desired_move))
