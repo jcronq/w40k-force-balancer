@@ -1,0 +1,132 @@
+# T'au Empire 2024 Combat Patrol — box-constrained v2 tune.
+#
+# Delta from forces/force_tau_2024cp_v2.yaml:
+#   Per-unit doctrine overrides. HARD CONSTRAINT: no new models — this is
+#   still the stock Combat Patrol list, 1 Commander / 10 Breachers /
+#   10 Pathfinders / 1 Devilfish.
+#
+#     * Commander:   "kite"     (cyclic ion blaster 18", half-range 9)
+#     * Breachers:   "gunline"  (pulse blaster 10", stays on deployment
+#                                 edge for HEAVY +1 to hit, lets Custodes
+#                                 close INTO the 10" bubble — avoids
+#                                 getting caught in no-man's-land at M=6)
+#     * Pathfinders: "kite"     (pulse carbine 24", half-range 12; also
+#                                 scout 6" via existing ability)
+#     * Devilfish:   "kite"     (burst cannon 36", half-range 18)
+#
+# Rationale: the audit worker's kite classifier lets long-range Tau
+# units HOLD at half-range while Custodes closes, so they get the
+# HEAVY +1 to hit for free on every unit with a weapon > 12". Breachers
+# are the only unit in the box with a short weapon; "gunline" keeps them
+# stationary at their deployment edge until Custodes walks into range
+# — the attacker-moves-first mechanic means Breachers always get to
+# shoot stationary.
+#
+# Pair with forces/tune/force_custodes_2024cp_v2_allarus_fix.yaml for
+# the recommended 50/50 matchup (CI 48.3-52.6 Tau at 2000 sims).
+name: "T'au Empire 2024 CP (tune v2 — mixed doctrine)"
+faction: TAU_EMPIRE
+detachment: montka
+cp: 4
+
+units:
+  - name: "Commander in Enforcer Battlesuit"
+    models: 1
+    M: 10
+    T: 6
+    W: 7
+    Sv: 2
+    InvSv: 4
+    Ld: 6
+    OC: 1
+    keywords: [BATTLESUIT, CHARACTER, COMMANDER, FLY, TAU_EMPIRE, JUMP_PACK]
+    doctrine: kite
+    abilities:
+      - FOR_THE_GREATER_GOOD
+    weapons:
+      - name: "Cyclic ion blaster"
+        A: 4
+        BS: 3
+        S: 6
+        AP: 1
+        D: 2
+        range: 18
+        abilities:
+          - HAZARDOUS
+      - name: "Battlesuit fist"
+        A: 3
+        WS: 4
+        S: 6
+        AP: 0
+        D: 1
+        melee: true
+
+  - name: "Fire Warriors Breacher Team"
+    models: 10
+    M: 6
+    T: 3
+    W: 1
+    Sv: 4
+    Ld: 7
+    OC: 2
+    keywords: [INFANTRY, FIRE_WARRIORS, TAU_EMPIRE, GRENADES]
+    doctrine: gunline
+    abilities:
+      - FOR_THE_GREATER_GOOD
+    weapons:
+      - name: "Pulse blaster (close)"
+        A: 2
+        BS: 4
+        S: 6
+        AP: 2
+        D: 1
+        range: 10
+
+  - name: "Pathfinders"
+    models: 10
+    M: 7
+    T: 3
+    W: 1
+    Sv: 5
+    Ld: 7
+    OC: 2
+    keywords: [INFANTRY, PATHFINDERS, TAU_EMPIRE, GRENADES]
+    doctrine: kite
+    abilities:
+      - FOR_THE_GREATER_GOOD
+      - {id: MARKERLIGHT, n: 1}
+      - {id: SCOUTS, n: 6}
+    weapons:
+      - name: "Pulse carbine"
+        A: 2
+        BS: 4
+        S: 5
+        AP: 0
+        D: 1
+        range: 24
+        abilities:
+          - {id: RAPID_FIRE, n: 1}
+
+  - name: "Devilfish"
+    models: 1
+    M: 12
+    T: 9
+    W: 11
+    Sv: 3
+    Ld: 7
+    OC: 3
+    keywords: [VEHICLE, DEVILFISH, FLY, TAU_EMPIRE]
+    doctrine: kite
+    abilities:
+      - FOR_THE_GREATER_GOOD
+      - {id: DEADLY_DEMISE, n: 1, threshold: 4}
+    weapons:
+      - name: "Burst cannon + seekers (aggregated)"
+        A: 6
+        BS: 4
+        S: 6
+        AP: 1
+        D: 1
+        range: 36
+        abilities:
+          - {id: SUSTAINED_HITS, n: 1}

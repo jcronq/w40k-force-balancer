@@ -1,0 +1,103 @@
+# Custodes 2024 Combat Patrol — box-constrained v2 tune.
+#
+# Delta from forces/force_custodes_2024cp_v2.yaml:
+#   Allarus Custodians "Castellan axe (melee)" — PRECISION removed.
+#
+# Rationale: in 10e the Castellan axe does NOT have the PRECISION keyword
+# on the live datasheet; only the Blade Champion's Vaultswords do. The
+# shipped v2 force carried an incorrect PRECISION on Allarus, which let
+# non-character-targeting attacks route damage to the attached Blade
+# Champion. Removing the error drops Custodes from 55.5% to 52.0% in
+# the 2000-sim blend and lands the matchup inside the 45-55 band.
+#
+# All other stats are unchanged — this is a pure 10e datasheet correction,
+# not a balance knob.
+name: "Custodes 2024 CP (tune v2 — Allarus datasheet fix)"
+faction: ADEPTUS_CUSTODES
+detachment: shield_host
+cp: 4
+
+units:
+  - name: "Blade Champion"
+    models: 1
+    M: 6
+    T: 6
+    W: 6
+    Sv: 2
+    InvSv: 4
+    Ld: 6
+    OC: 1
+    keywords: [INFANTRY, CHARACTER, ADEPTUS_CUSTODES, BLADE_CHAMPION]
+    abilities:
+      - FIGHTS_FIRST
+      - LEADER
+    leader: "Custodian Guard"
+    weapons:
+      - name: "Vaultswords"
+        A: 6
+        WS: 2
+        S: 7
+        AP: 3
+        D: 2
+        melee: true
+        abilities:
+          - PRECISION
+          - {id: SUSTAINED_HITS, n: 1}
+
+  - name: "Allarus Custodians"
+    models: 3
+    M: 5
+    T: 6
+    W: 4
+    Sv: 2
+    InvSv: 4
+    Ld: 6
+    OC: 2
+    keywords: [INFANTRY, TERMINATOR, ADEPTUS_CUSTODES, ALLARUS_CUSTODIANS]
+    abilities:
+      - DEEP_STRIKE
+    weapons:
+      - name: "Castellan axe (melee)"
+        A: 4
+        WS: 2
+        S: 7
+        AP: 2
+        D: 2
+        melee: true
+      - name: "Balistus grenade launcher"
+        A: 1
+        BS: 2
+        S: 4
+        AP: 0
+        D: 1
+        range: 18
+        abilities:
+          - BLAST
+
+  - name: "Custodian Guard"
+    models: 5
+    M: 6
+    T: 6
+    W: 3
+    Sv: 2
+    InvSv: 4
+    Ld: 6
+    OC: 2
+    keywords: [INFANTRY, ADEPTUS_CUSTODES, CUSTODIAN_GUARD]
+    weapons:
+      - name: "Guardian spear (melee)"
+        A: 4
+        WS: 2
+        S: 7
+        AP: 2
+        D: 2
+        melee: true
+      - name: "Guardian spear (ranged)"
+        A: 2
+        BS: 2
+        S: 4
+        AP: 1
+        D: 1
+        range: 24
+        abilities:
+          - {id: RAPID_FIRE, n: 2}
