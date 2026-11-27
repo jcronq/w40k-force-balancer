@@ -8,7 +8,11 @@ from ..core import board as _board
 from ..core.dice import roll_d6
 from ..core.model import Force, Unit, Weapon
 from ..engine.logger import BattleLogger, NullLogger, VerboseStdoutLogger
-from ..rules.damage import apply_damage_with_attachment, apply_self_mortals_rng
+from ..rules.damage import (
+    ShotResult,
+    apply_damage_with_attachment,
+    apply_self_mortals_rng,
+)
 from ..rules.stratagems import _can_use_strat, _spend_strat
 from ..rules.unit_abilities import apply_deadly_demise
 from ..rules.weapon_abilities import resolve_shots
@@ -41,6 +45,35 @@ def _attached_wounds(u: Unit) -> int:
     if ac is None or not ac.alive:
         return 0
     return ac.total_wounds
+
+
+def _is_look_out_sir_protected(e: Unit) -> bool:
+    """10e Look Out Sir: an attached CHARACTER cannot be targeted while its
+    bodyguard squad is still alive, unless the shooting weapon has PRECISION
+    (handled by the caller).
+
+    We treat a unit as protected iff its `attached_to` points at a still-
+    living squad — matches how `apply_damage_with_attachment` routes damage.
+    """
+    return e.attached_to is not None and e.attached_to.alive
+
+
+def _los_filter(
+    candidates: list[Unit],
+    weapon: Weapon | None,
+) -> list[Unit]:
+    """Fix #4 — enforce Look Out Sir on target enumeration.
+
+    Removes attached characters from the candidate list unless the weapon
+    carries PRECISION. If the filter would leave the shooter with zero
+    targets (the character is the only visible enemy), fall back to the
+    unfiltered list — that mirrors the "last-model exception" in a
+    simplified form.
+    """
+    if weapon is not None and "PRECISION" in weapon.abilities:
+        return candidates
+    filtered = [e for e in candidates if not _is_look_out_sir_protected(e)]
+    return filtered if filtered else candidates
 
 
 def _emit_activation(
@@ -132,14 +165,31 @@ def shooting_phase(
             )
             continue
 
-        # Grenade stratagem — simple trigger: if a single INFANTRY enemy within
-        # 8" and this unit has GRENADES keyword, consider throwing.
+        # Grenade stratagem — 10e wording (fix #3):
+        #   "Pick one enemy INFANTRY unit within 8" of a friendly INFANTRY
+        #    unit with the GRENADES keyword, then roll six D6: for each
+        #    4+ the target unit takes 1 mortal wound. Costs 1 CP, once per
+        #    battle round per player."
+        # Mortal wounds bypass armor + invuln (we route via
+        # ShotResult.mortal_body -> apply_damage_to_squad).
         if (
             "GRENADES" in unit.keywords
             and unit.has_keyword("INFANTRY")
             and _can_use_strat(current, "GRENADE", round_no)
         ):
-            target = _board.closest_enemy_within(unit, enemy, 8)
+            # Grenade is non-PRECISION, so attached characters are LoS-protected.
+            grenade_candidates = _los_filter(
+                [
+                    e for e in enemy.living_on_board()
+                    if _board.pair_distance(unit, e) <= 8
+                    and e.has_keyword("INFANTRY")
+                ],
+                weapon=None,
+            )
+            target = (
+                min(grenade_candidates, key=lambda e: _board.pair_distance(unit, e))
+                if grenade_candidates else None
+            )
             if target is not None and target.has_keyword("INFANTRY"):
                 _spend_strat(current, "GRENADE", round_no, unit)
                 logger.record({
@@ -150,28 +200,29 @@ def shooting_phase(
                     "strat_id": "GRENADE",
                     "actor": unit.name,
                 })
-                # Grenade = 1d6 S6 AP-1 D1 attacks. Sampled once per use so
-                # variance lands in the win/lose distribution; expected value
-                # is 3.5. Fired from a single-model "virtual thrower" so
-                # attacks do NOT multiply by the squad's model count.
-                grenade_attacks = roll_d6(rng)
-                virtual = Weapon(
-                    name="Grenade (strat)", attacks=grenade_attacks, skill=4, strength=6,
-                    ap=1, damage=1, melee=False, range_in=8,
-                )
-                ephemeral_thrower = replace(
-                    unit,
-                    models=1,
-                    weapons=[virtual],
-                    remained_stationary=unit.remained_stationary,
-                )
-                dist = _board.pair_distance(unit, target)
+                # Roll 6 d6; each 4+ deals 1 mortal wound.
+                hits = sum(1 for _ in range(6) if roll_d6(rng) >= 4)
                 pre_models = target.models
                 pre_ac = _attached_wounds(target)
-                shot = resolve_shots(ephemeral_thrower, virtual, target, dist, current, rng)
-                deaths = apply_damage_with_attachment(target, shot, None, current, enemy)
+                shot = ShotResult(
+                    mortal_body=hits,
+                    total_attacks=6,
+                    hit_count=hits,
+                    wound_count=hits,
+                    unsaved_count=hits,
+                )
+                deaths = apply_damage_with_attachment(
+                    target, shot, None, current, enemy,
+                )
                 for d in deaths:
                     apply_deadly_demise(d, current, rng)
+                # Log via a virtual weapon so the markdown renderer has a
+                # name to display.
+                virtual = Weapon(
+                    name="Grenade (strat, 6d6 MW on 4+)",
+                    attacks=6, skill=4, strength=0,
+                    ap=0, damage=1, melee=False, range_in=8,
+                )
                 _emit_activation(logger, round_no, turn_side, "shooting",
                                  unit, target, virtual, shot, pre_models, pre_ac)
                 _emit_deaths(logger, round_no, turn_side, "shooting", deaths)
@@ -237,6 +288,9 @@ def _shoot_weapon_set(
             e for e in enemy.living_on_board()
             if _board.pair_distance(unit, e) <= weapon.range_in
         ]
+        # Fix #4: Look Out Sir — can't target an attached character unless
+        # the weapon has PRECISION.
+        candidates = _los_filter(candidates, weapon)
         if not candidates:
             continue
         target = _pick_target(candidates, unit, priority)
